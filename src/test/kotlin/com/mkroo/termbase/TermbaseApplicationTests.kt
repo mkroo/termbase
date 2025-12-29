@@ -1,15 +1,19 @@
 package com.mkroo.termbase
 
-import org.junit.jupiter.api.Test
+import io.kotest.core.spec.style.DescribeSpec
+import io.kotest.extensions.spring.SpringExtension
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
-class TermbaseApplicationTests {
+class TermbaseApplicationTests : DescribeSpec() {
+    init {
+        extension(SpringExtension())
 
-    @Test
-    fun contextLoads() {
+        describe("TermbaseApplication") {
+            it("should load context") {
+            }
+        }
     }
-
 }
