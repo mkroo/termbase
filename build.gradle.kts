@@ -1,6 +1,7 @@
 plugins {
     kotlin("jvm") version "2.3.0"
     kotlin("plugin.spring") version "2.3.0"
+    kotlin("plugin.jpa") version "2.3.0"
     id("org.springframework.boot") version "4.0.1"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.asciidoctor.jvm.convert") version "4.0.5"
@@ -33,7 +34,7 @@ extra["snippetsDir"] = file("build/generated-snippets")
 dependencies {
     implementation("org.springframework.boot:spring-boot-h2console")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
@@ -45,12 +46,13 @@ dependencies {
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     testImplementation("org.springframework.boot:spring-boot-restdocs")
     testImplementation("org.springframework.boot:spring-boot-starter-actuator-test")
-    testImplementation("org.springframework.boot:spring-boot-starter-data-jdbc-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testImplementation("org.springframework.boot:spring-boot-starter-thymeleaf-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.springframework.restdocs:spring-restdocs-mockmvc")
+    testImplementation(platform("org.testcontainers:testcontainers-bom:1.20.4"))
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("io.kotest:kotest-runner-junit5:6.0.7")
     testImplementation("io.kotest:kotest-assertions-core:6.0.7")
@@ -92,7 +94,9 @@ tasks.jacocoTestCoverageVerification {
         files(
             classDirectories.files.map {
                 fileTree(it) {
-                    exclude("**/TermbaseApplication*")
+                    exclude(
+                        "**/TermbaseApplication*",
+                    )
                 }
             },
         ),
@@ -104,7 +108,9 @@ tasks.jacocoTestReport {
         files(
             classDirectories.files.map {
                 fileTree(it) {
-                    exclude("**/TermbaseApplication*")
+                    exclude(
+                        "**/TermbaseApplication*",
+                    )
                 }
             },
         ),
