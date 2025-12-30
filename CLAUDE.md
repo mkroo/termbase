@@ -90,6 +90,29 @@ Key points:
 - Use `it` for individual test cases
 - Use Kotest assertions (`shouldBe`, `shouldThrow`, etc.)
 
+## Spring Data JPA Guidelines
+
+Use the minimal `Repository<T, ID>` interface instead of `JpaRepository` or `CrudRepository`. Define only the methods you actually need.
+
+```kotlin
+// Good: 필요한 메서드만 정의
+interface TermRepository : Repository<Term, Long> {
+    fun save(term: Term): Term
+    fun findById(id: Long): Term?
+    fun findByName(name: String): Term?
+    fun existsByName(name: String): Boolean
+}
+
+// Avoid: 불필요한 메서드까지 노출
+interface TermRepository : JpaRepository<Term, Long>
+```
+
+**이유:**
+
+- 실제 사용하는 메서드만 노출하여 인터페이스 명확성 향상
+- 불필요한 `deleteAll()`, `flush()` 등의 위험한 메서드 노출 방지
+- 테스트 시 mock 범위 최소화
+
 ## Project Documentation
 
 Before starting any task, you MUST read:
