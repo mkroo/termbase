@@ -123,7 +123,6 @@ class IgnoredTerm(
         "synonym_filter": {
           "type": "synonym",
           "synonyms": []
-          // MySQL에서 동기화
         }
       },
       "analyzer": {
@@ -155,22 +154,44 @@ class IgnoredTerm(
       },
       "timestamp": {
         "type": "date"
-      },
-      "extractedTerms": {
-        "type": "nested",
-        "properties": {
-          "term": {
-            "type": "keyword"
-          },
-          "frequency": {
-            "type": "integer"
-          }
-        }
       }
     }
   }
 }
 ```
+
+### Term Frequency Aggregation
+
+용어 빈도 집계는 Elasticsearch의 `terms` aggregation을 사용합니다. 별도의 필드 저장 없이 실시간으로 빈도를 계산합니다.
+
+```
+GET /slack_messages/_search
+{
+  "size": 0,
+  "query": {
+    "range": {
+      "timestamp": {
+        "gte": "now-7d/d",
+        "lte": "now/d"
+      }
+    }
+  },
+  "aggs": {
+    "top_terms": {
+      "terms": {
+        "field": "content",
+        "size": 100
+      }
+    }
+  }
+}
+```
+
+**장점:**
+
+- 인덱싱 시 별도 처리 불필요
+- 동의어 변경 시 재인덱싱만으로 빈도 자동 반영
+- 저장 공간 절약
 
 ### Synonym Synchronization
 
