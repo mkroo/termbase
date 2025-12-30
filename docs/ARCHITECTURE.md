@@ -348,7 +348,8 @@ services:
       - mysql_data:/var/lib/mysql
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+    build:
+      context: ./docker/elasticsearch
     ports:
       - "9200:9200"
     environment:
@@ -361,6 +362,13 @@ services:
 volumes:
   mysql_data:
   es_data:
+```
+
+```dockerfile
+# docker/elasticsearch/Dockerfile
+FROM docker.elastic.co/elasticsearch/elasticsearch:9.0.0
+
+RUN bin/elasticsearch-plugin install analysis-nori
 ```
 
 **실행 방법**:
@@ -386,12 +394,27 @@ docker-compose up -d
 class TestcontainersConfiguration {
     @Bean
     @ServiceConnection
-    fun elasticsearchContainer(): ElasticsearchContainer =
-        ElasticsearchContainer(
-            DockerImageName.parse("docker.elastic.co/elasticsearch/elasticsearch:8.12.2"),
+    fun elasticsearchContainer(): ElasticsearchContainer {
+        // Nori 플러그인이 설치된 커스텀 이미지 생성
+        val image =
+            ImageFromDockerfile("termbase-test-es:9.0.0-nori", false)
+                .withDockerfileFromBuilder { builder ->
+                    builder
+                        .from("docker.elastic.co/elasticsearch/elasticsearch:9.0.0")
+                        .run("bin/elasticsearch-plugin install analysis-nori")
+                        .build()
+                }
+
+        image.get()
+
+        return ElasticsearchContainer(
+            DockerImageName
+                .parse("termbase-test-es:9.0.0-nori")
+                .asCompatibleSubstituteFor("docker.elastic.co/elasticsearch/elasticsearch"),
         ).withEnv("xpack.security.enabled", "false")
             .withEnv("ES_JAVA_OPTS", "-Xms256m -Xmx256m")
-            .withStartupTimeout(Duration.ofMinutes(3))
+            .withStartupTimeout(Duration.ofMinutes(5))
+    }
 }
 ```
 
