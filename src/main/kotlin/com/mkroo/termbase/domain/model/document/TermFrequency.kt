@@ -1,4 +1,4 @@
-package com.mkroo.termbase.domain.model.slack
+package com.mkroo.termbase.domain.model.document
 
 data class TermFrequency(
     val term: String,

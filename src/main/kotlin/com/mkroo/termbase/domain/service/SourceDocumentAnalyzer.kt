@@ -1,7 +1,7 @@
 package com.mkroo.termbase.domain.service
 
-import com.mkroo.termbase.domain.model.slack.TermFrequency
+import com.mkroo.termbase.domain.model.document.TermFrequency
 
-interface ConversationAnalyzer {
+interface SourceDocumentAnalyzer {
     fun getTopFrequentTerms(size: Int): List<TermFrequency>
 }
