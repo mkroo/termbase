@@ -141,6 +141,30 @@ After writing new logic, you MUST:
 
 Do not consider a task complete until all tests pass, coverage is verified, and the build succeeds.
 
+## Kotlin Code Style
+
+**IMPORTANT**: 사용자가 코드 스타일에 대해 피드백을 주면, 해당 내용을 이 섹션에 추가할지 물어보세요. 동일한 스타일 이슈가 반복되지 않도록 문서화합니다.
+
+### Import Guidelines
+
+Always use `import` statements instead of fully qualified class names in code.
+
+```kotlin
+// Good: import 사용
+import java.time.Instant
+
+val now = Instant.now()
+
+// Avoid: fully qualified name 사용
+val now = java.time.Instant.now()
+```
+
+**이유:**
+
+- 코드 가독성 향상
+- 일관된 코드 스타일 유지
+- 클래스 이름 충돌 시에만 fully qualified name 사용
+
 ## Documentation Guidelines
 
 - **Diagrams**: Always use **Mermaid** syntax for all diagrams (flowcharts, sequence diagrams, class diagrams, ER
