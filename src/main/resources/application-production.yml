@@ -1,0 +1,19 @@
+spring:
+  docker:
+    compose:
+      enabled: false
+
+  datasource:
+    url: ${DATASOURCE_URL}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS}
+
+logging:
+  level:
+    org.hibernate.SQL: info
+    org.hibernate.orm.jdbc.bind: info

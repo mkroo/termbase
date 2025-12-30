@@ -29,7 +29,6 @@ flowchart LR
     Register --> Share[팀 전체 공유]
 ```
 
-
 ### 주요 기능
 
 - **슬랙 연동** - OAuth를 통해 워크스페이스를 연동하고 모니터링할 채널 선택
@@ -61,17 +60,19 @@ flowchart LR
 ### 요구 사항
 
 - JDK 25+
-- Docker (Testcontainers 사용 시)
+- Docker
 
-### 로컬 실행
+### 로컬 개발
 
 ```bash
 # 프로젝트 빌드
 ./gradlew build
 
-# 애플리케이션 실행 (Testcontainers 사용)
-./gradlew bootTestRun
+# 애플리케이션 실행 (docker-compose 자동 시작)
+./gradlew bootRun
 ```
+
+`bootRun` 실행 시 Spring Boot Docker Compose가 자동으로 MySQL과 Elasticsearch를 시작합니다.
 
 ### 테스트
 
@@ -82,6 +83,22 @@ flowchart LR
 # 테스트 커버리지 확인
 ./gradlew jacocoTestReport
 ```
+
+테스트는 H2(MySQL 호환 모드)와 Testcontainers(Elasticsearch)를 사용하여 외부 의존성 없이 실행됩니다.
+
+### 프로덕션 실행
+
+```bash
+SPRING_PROFILES_ACTIVE=production \
+DATASOURCE_URL="jdbc:mysql://db-host:3306/termbase?user=app&password=secret" \
+ELASTICSEARCH_URIS="http://es-host:9200" \
+java -jar build/libs/termbase-0.0.1-SNAPSHOT.jar
+```
+
+| 환경변수                 | 설명                        | 예시                                            |
+|----------------------|---------------------------|-----------------------------------------------|
+| `DATASOURCE_URL`     | MySQL JDBC URL (인증 정보 포함) | `jdbc:mysql://host:3306/db?user=u&password=p` |
+| `ELASTICSEARCH_URIS` | Elasticsearch URI         | `http://es-host:9200`                         |
 
 ## 문서
 

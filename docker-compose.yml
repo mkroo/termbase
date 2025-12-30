@@ -1,0 +1,29 @@
+services:
+  mysql:
+    image: mysql:8
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: termbase
+    volumes:
+      - mysql_data:/var/lib/mysql
+    labels:
+      org.springframework.boot.service-connection: mysql
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+    ports:
+      - "9200:9200"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    labels:
+      org.springframework.boot.service-connection: elasticsearch
+
+volumes:
+  mysql_data:
+  es_data:

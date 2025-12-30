@@ -272,6 +272,127 @@ class ReindexingService(
 
 ---
 
+## Environment Configuration
+
+### Overview
+
+```mermaid
+flowchart TB
+    subgraph Local["Local Development"]
+        direction TB
+        App1[Application<br/>bootRun]
+        DC[docker-compose]
+        MySQL1[(MySQL 8)]
+        ES1[(Elasticsearch 8)]
+        App1 --> MySQL1
+        App1 --> ES1
+        DC -.->|manages| MySQL1
+        DC -.->|manages| ES1
+    end
+
+    subgraph Test["Test Environment"]
+        direction TB
+        App2[Application<br/>test]
+        TC[Testcontainers]
+        H2[(H2<br/>MySQL mode)]
+        ES2[(Elasticsearch 8)]
+        App2 --> H2
+        App2 --> ES2
+        TC -.->|manages| ES2
+    end
+```
+
+### Environment Details
+
+| Environment     | RDB             | Search Engine   | Management     |
+|-----------------|-----------------|-----------------|----------------|
+| Local (bootRun) | MySQL 8         | Elasticsearch 8 | docker-compose |
+| Test            | H2 (MySQL mode) | Elasticsearch 8 | Testcontainers |
+
+### Local Development
+
+로컬 개발 환경에서는 `docker-compose`를 사용하여 MySQL과 Elasticsearch를 실행합니다.
+
+```yaml
+# docker-compose.yml
+services:
+  mysql:
+    image: mysql:8
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: termbase
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+    ports:
+      - "9200:9200"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
+volumes:
+  mysql_data:
+  es_data:
+```
+
+**실행 방법**:
+
+```bash
+# 인프라 실행
+docker-compose up -d
+
+# 애플리케이션 실행
+./gradlew bootRun
+```
+
+### Test Environment
+
+테스트 환경에서는 Testcontainers와 H2를 사용하여 외부 의존성 없이 테스트를 실행합니다.
+
+- **MySQL → H2**: H2의 MySQL 호환 모드를 사용하여 MySQL 문법 지원
+- **Elasticsearch**: Testcontainers로 실제 Elasticsearch 컨테이너 실행
+
+```kotlin
+// TestcontainersConfiguration.kt
+@TestConfiguration(proxyBeanMethods = false)
+class TestcontainersConfiguration {
+    @Bean
+    @ServiceConnection
+    fun elasticsearchContainer(): ElasticsearchContainer =
+        ElasticsearchContainer(
+            DockerImageName.parse("docker.elastic.co/elasticsearch/elasticsearch:8.12.2"),
+        ).withEnv("xpack.security.enabled", "false")
+            .withEnv("ES_JAVA_OPTS", "-Xms256m -Xmx256m")
+            .withStartupTimeout(Duration.ofMinutes(3))
+}
+```
+
+```yaml
+# application-test.yml
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DATABASE_TO_LOWER=TRUE
+    driver-class-name: org.h2.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+```
+
+**실행 방법**:
+
+```bash
+# 테스트 실행 (외부 의존성 불필요)
+./gradlew test
+```
+
+---
+
 ## Layered Architecture
 
 본 프로젝트는 **Layered Architecture**를 사용합니다. 각 계층은 명확한 책임을 가지며, 상위 계층은 하위 계층에만 의존합니다.
