@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{layout/default :: head('무시된 단어')}">
+    <title>무시된 단어</title>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav th:replace="~{layout/default :: nav}"></nav>
+
+    <main class="max-w-4xl mx-auto px-4 py-6">
+        <div th:if="${success != null}" class="mb-4 p-4 bg-green-100 text-green-800 rounded-lg" th:text="${success}"></div>
+        <div th:if="${error != null}" class="mb-4 p-4 bg-red-100 text-red-800 rounded-lg" th:text="${error}"></div>
+
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-900">무시된 단어</h1>
+            <a th:href="@{/ignored/new}"
+               class="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900 transition text-sm">
+                + 추가
+            </a>
+        </div>
+
+        <div class="bg-white rounded-lg shadow">
+            <div th:if="${#lists.isEmpty(ignoredTerms)}" class="p-6 text-center text-gray-500">
+                등록된 무시된 단어가 없습니다.
+            </div>
+
+            <table th:unless="${#lists.isEmpty(ignoredTerms)}" class="w-full">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">단어</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">사유</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">등록일</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    <tr th:each="ignoredTerm : ${ignoredTerms}" class="hover:bg-gray-50">
+                        <td class="px-6 py-4">
+                            <a th:href="@{/ignored/{name}(name=${ignoredTerm.name})}"
+                               class="text-blue-600 hover:text-blue-800 font-medium"
+                               th:text="${ignoredTerm.name}"></a>
+                        </td>
+                        <td class="px-6 py-4 text-gray-500 text-sm" th:text="${ignoredTerm.reason}"></td>
+                        <td class="px-6 py-4 text-gray-500 text-sm"
+                            th:text="${#temporals.format(ignoredTerm.createdAt, 'yyyy-MM-dd')}"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</body>
+</html>

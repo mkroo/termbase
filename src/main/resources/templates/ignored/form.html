@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{layout/default :: head('무시된 단어 추가')}">
+    <title>무시된 단어 추가</title>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav th:replace="~{layout/default :: nav}"></nav>
+
+    <main class="max-w-2xl mx-auto px-4 py-6">
+        <div class="mb-6">
+            <a th:href="@{/ignored}" class="text-gray-600 hover:text-gray-900">&larr; 목록으로</a>
+        </div>
+
+        <div th:if="${error != null}" class="mb-4 p-4 bg-red-100 text-red-800 rounded-lg" th:text="${error}"></div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <h1 class="text-2xl font-bold text-gray-900 mb-6">무시된 단어 추가</h1>
+
+            <form th:action="@{/ignored}" method="post" class="space-y-4">
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">단어</label>
+                    <input type="text" id="name" name="name" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           placeholder="무시할 단어 입력">
+                </div>
+
+                <div>
+                    <label for="reason" class="block text-sm font-medium text-gray-700 mb-1">사유</label>
+                    <textarea id="reason" name="reason" rows="3" required
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="무시 사유 입력 (필수)"></textarea>
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="submit"
+                            class="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900 transition">
+                        추가
+                    </button>
+                    <a th:href="@{/ignored}"
+                       class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition">
+                        취소
+                    </a>
+                </div>
+            </form>
+        </div>
+    </main>
+</body>
+</html>

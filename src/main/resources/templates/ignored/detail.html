@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{layout/default :: head(${ignoredTerm.name})}">
+    <title>무시된 단어 상세</title>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav th:replace="~{layout/default :: nav}"></nav>
+
+    <main class="max-w-2xl mx-auto px-4 py-6">
+        <div class="mb-6">
+            <a th:href="@{/ignored}" class="text-gray-600 hover:text-gray-900">&larr; 목록으로</a>
+        </div>
+
+        <div th:if="${success != null}" class="mb-4 p-4 bg-green-100 text-green-800 rounded-lg" th:text="${success}"></div>
+        <div th:if="${error != null}" class="mb-4 p-4 bg-red-100 text-red-800 rounded-lg" th:text="${error}"></div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900" th:text="${ignoredTerm.name}"></h1>
+                    <p class="text-sm text-gray-500 mt-1">
+                        등록일: <span th:text="${#temporals.format(ignoredTerm.createdAt, 'yyyy-MM-dd HH:mm')}"></span>
+                    </p>
+                </div>
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                    무시됨
+                </span>
+            </div>
+
+            <form th:action="@{/ignored/{name}/reason(name=${ignoredTerm.name})}" method="post" class="mb-6">
+                <label for="reason" class="block text-sm font-medium text-gray-700 mb-1">무시 사유</label>
+                <textarea id="reason" name="reason" rows="3"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2"
+                          th:text="${ignoredTerm.reason}"></textarea>
+                <button type="submit"
+                        class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm">
+                    사유 수정
+                </button>
+            </form>
+
+            <div class="border-t pt-4">
+                <form th:action="@{/ignored/{name}/delete(name=${ignoredTerm.name})}" method="post"
+                      onsubmit="return confirm('정말 이 무시된 단어를 삭제하시겠습니까?');">
+                    <button type="submit"
+                            class="text-red-600 hover:text-red-800 text-sm">
+                        삭제
+                    </button>
+                </form>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
