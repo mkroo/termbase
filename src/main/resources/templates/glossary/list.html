@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{layout/default :: head('용어 사전')}">
+    <title>용어 사전</title>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav th:replace="~{layout/default :: nav}"></nav>
+
+    <main class="max-w-6xl mx-auto px-4 py-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-900">용어 사전</h1>
+            <a th:href="@{/glossary/new}"
+               class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                용어 추가
+            </a>
+        </div>
+
+        <div th:if="${success != null}" class="mb-4 p-4 bg-green-100 text-green-800 rounded-lg" th:text="${success}"></div>
+
+        <div th:if="${#lists.isEmpty(terms)}" class="text-center py-12 text-gray-500">
+            등록된 용어가 없습니다.
+        </div>
+
+        <div th:unless="${#lists.isEmpty(terms)}" class="bg-white rounded-lg shadow overflow-hidden">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">용어</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">정의</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">동의어</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">등록일</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    <tr th:each="term : ${terms}" class="hover:bg-gray-50">
+                        <td class="px-6 py-4">
+                            <a th:href="@{/glossary/{name}(name=${term.name})}"
+                               class="text-blue-600 hover:text-blue-800 font-medium"
+                               th:text="${term.name}"></a>
+                        </td>
+                        <td class="px-6 py-4 text-gray-600 max-w-md truncate" th:text="${term.definition}"></td>
+                        <td class="px-6 py-4 text-gray-500">
+                            <span th:if="${#lists.isEmpty(term.synonyms)}">-</span>
+                            <span th:unless="${#lists.isEmpty(term.synonyms)}"
+                                  th:text="${#lists.size(term.synonyms)} + '개'"></span>
+                        </td>
+                        <td class="px-6 py-4 text-gray-500 text-sm"
+                            th:text="${#temporals.format(term.createdAt, 'yyyy-MM-dd')}"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</body>
+</html>
