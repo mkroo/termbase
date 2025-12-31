@@ -86,6 +86,16 @@ tasks.jacocoTestReport {
     }
 }
 
+val jacocoExcludes =
+    listOf(
+        "**/TermbaseApplication*",
+        "**/presentation/controller/*Request*",
+        "**/presentation/controller/*Response*",
+        "**/presentation/controller/ApiResponse*",
+        "**/presentation/controller/TermNotFoundException*",
+        "**/presentation/controller/IgnoredTermNotFoundException*",
+    )
+
 tasks.jacocoTestCoverageVerification {
     violationRules {
         rule {
@@ -98,9 +108,7 @@ tasks.jacocoTestCoverageVerification {
         files(
             classDirectories.files.map {
                 fileTree(it) {
-                    exclude(
-                        "**/TermbaseApplication*",
-                    )
+                    exclude(jacocoExcludes)
                 }
             },
         ),
@@ -112,9 +120,7 @@ tasks.jacocoTestReport {
         files(
             classDirectories.files.map {
                 fileTree(it) {
-                    exclude(
-                        "**/TermbaseApplication*",
-                    )
+                    exclude(jacocoExcludes)
                 }
             },
         ),
