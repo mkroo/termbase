@@ -1,0 +1,165 @@
+package com.mkroo.termbase.application.service
+
+import com.mkroo.termbase.TestcontainersConfiguration
+import com.mkroo.termbase.domain.repository.TermRepository
+import io.kotest.core.spec.style.DescribeSpec
+import io.kotest.extensions.spring.SpringExtension
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.types.shouldBeInstanceOf
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.context.annotation.Import
+import org.springframework.test.context.ActiveProfiles
+import org.springframework.transaction.annotation.Transactional
+
+/**
+ * User Story 6: 용어 사전(glossary) 관리
+ *
+ * As a 관리자
+ * I want to 용어 사전에 용어를 추가/수정/삭제할 수 있다
+ * So that 용어 추출 정확도를 높일 수 있다
+ */
+@Import(TestcontainersConfiguration::class)
+@SpringBootTest
+@ActiveProfiles("test")
+@Transactional
+class GlossaryServiceTest : DescribeSpec() {
+    @Autowired
+    private lateinit var glossaryService: GlossaryService
+
+    @Autowired
+    private lateinit var synonymService: SynonymService
+
+    @Autowired
+    private lateinit var termRepository: TermRepository
+
+    init {
+        extension(SpringExtension())
+
+        describe("용어 사전(glossary) 관리") {
+            describe("용어 추가") {
+                it("용어 사전에 정의와 함께 용어를 추가할 수 있다") {
+                    val result =
+                        glossaryService.addTerm(
+                            name = "API",
+                            definition = "Application Programming Interface의 약자",
+                        )
+
+                    result.shouldBeInstanceOf<TermAddResult.Success>()
+                    result.term.name shouldBe "API"
+                    result.term.definition shouldBe "Application Programming Interface의 약자"
+                }
+
+                it("이미 존재하는 용어를 추가하면 실패한다") {
+                    glossaryService.addTerm(name = "API", definition = "기존 정의")
+
+                    val result = glossaryService.addTerm(name = "API", definition = "새로운 정의")
+
+                    result.shouldBeInstanceOf<TermAddResult.AlreadyExists>()
+                    result.name shouldBe "API"
+                }
+
+                it("새 용어에 기존 용어가 포함되는 경우 충돌 경고를 반환한다") {
+                    // "지능"이 이미 등록된 상태
+                    glossaryService.addTerm(name = "지능", definition = "지적 능력")
+
+                    // "인공지능" 추가 시 "지능"이 포함됨
+                    val result = glossaryService.addTerm(name = "인공지능", definition = "인간의 지능을 모방한 기술")
+
+                    result.shouldBeInstanceOf<TermAddResult.ConflictWithExistingTerms>()
+                    result.name shouldBe "인공지능"
+                    result.conflictingTerms shouldBe listOf("지능")
+                }
+
+                it("동의어로 등록된 용어를 대표어로 추가할 수 없다") {
+                    // "API"의 동의어로 "인터페이스" 등록
+                    glossaryService.addTerm(name = "API", definition = "Application Programming Interface")
+                    synonymService.addSynonym(termName = "API", synonymName = "인터페이스")
+
+                    // "인터페이스"를 대표어로 추가 시도
+                    val result = glossaryService.addTerm(name = "인터페이스", definition = "접점")
+
+                    result.shouldBeInstanceOf<TermAddResult.AlreadyExistsAsSynonym>()
+                    result.name shouldBe "인터페이스"
+                }
+            }
+
+            describe("용어 삭제") {
+                it("용어 사전에서 용어를 삭제할 수 있다") {
+                    glossaryService.addTerm(name = "API", definition = "Application Programming Interface")
+
+                    glossaryService.deleteTerm(name = "API")
+
+                    termRepository.findByName("API") shouldBe null
+                }
+
+                it("존재하지 않는 용어를 삭제하면 예외가 발생한다") {
+                    val exception =
+                        runCatching {
+                            glossaryService.deleteTerm(name = "존재하지않는용어")
+                        }.exceptionOrNull()
+
+                    exception shouldNotBe null
+                    exception!!.message shouldBe "존재하지 않는 용어입니다: 존재하지않는용어"
+                }
+            }
+
+            describe("용어 정의 수정") {
+                it("용어 사전에서 용어의 정의를 수정할 수 있다") {
+                    glossaryService.addTerm(name = "API", definition = "기존 정의")
+
+                    val updatedTerm =
+                        glossaryService.updateDefinition(
+                            name = "API",
+                            newDefinition = "Application Programming Interface의 약자로, 소프트웨어 간 상호작용을 위한 인터페이스",
+                        )
+
+                    updatedTerm.definition shouldBe "Application Programming Interface의 약자로, 소프트웨어 간 상호작용을 위한 인터페이스"
+                }
+
+                it("존재하지 않는 용어의 정의를 수정하면 예외가 발생한다") {
+                    val exception =
+                        runCatching {
+                            glossaryService.updateDefinition(name = "존재하지않는용어", newDefinition = "새 정의")
+                        }.exceptionOrNull()
+
+                    exception shouldNotBe null
+                    exception!!.message shouldBe "존재하지 않는 용어입니다: 존재하지않는용어"
+                }
+            }
+
+            describe("용어 조회") {
+                it("모든 용어를 조회할 수 있다") {
+                    glossaryService.addTerm(name = "API", definition = "Application Programming Interface")
+                    glossaryService.addTerm(name = "SDK", definition = "Software Development Kit")
+
+                    val terms = glossaryService.findAll()
+
+                    terms.size shouldBe 2
+                }
+
+                it("용어가 없으면 빈 리스트를 반환한다") {
+                    val terms = glossaryService.findAll()
+
+                    terms.size shouldBe 0
+                }
+
+                it("이름으로 용어를 조회할 수 있다") {
+                    glossaryService.addTerm(name = "API", definition = "Application Programming Interface")
+
+                    val term = glossaryService.findByName("API")
+
+                    term shouldNotBe null
+                    term!!.name shouldBe "API"
+                }
+
+                it("존재하지 않는 용어를 조회하면 null을 반환한다") {
+                    val term = glossaryService.findByName("존재하지않는용어")
+
+                    term shouldBe null
+                }
+            }
+        }
+    }
+}
