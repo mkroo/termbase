@@ -11,7 +11,8 @@ flowchart TB
     end
 
     subgraph MySQL["MySQL (JPA)"]
-        Term["Term (용어 + 동의어 + 무시 상태)"]
+        Term["Term (용어 + 동의어)"]
+        IgnoredTerm["IgnoredTerm (무시된 단어)"]
         SlackWorkspace["SlackWorkspace (슬랙 워크스페이스 + 채널)"]
         ReminderConfig["ReminderConfig (리마인더 설정)"]
     end
@@ -27,16 +28,17 @@ flowchart TB
     App --> ES
     Term -.->|name 동기화| UserDict
     Term -.->|synonyms 동기화| SynonymFilter
-```
+``` 
 
 ### Storage Responsibilities
 
-| Storage       | Data           | Purpose                                                        |
-|---------------|----------------|----------------------------------------------------------------|
-| MySQL (JPA)   | Term           | 용어 + 동의어 + 무시 상태 관리, ES user_dictionary/synonym filter 원본 (AR) |
-| MySQL (JPA)   | SlackWorkspace | 슬랙 워크스페이스 + 채널 모니터링 설정 (Aggregate Root)                        |
-| MySQL (JPA)   | ReminderConfig | 리마인더 설정 (cron 표현식, 상위 N개) 관리                                   |
-| Elasticsearch | SourceDocument | 원천 데이터 저장 및 용어 빈도 집계 (Slack, Gmail, Webhook 등)                 |
+| Storage       | Data           | Purpose                                                |
+|---------------|----------------|--------------------------------------------------------|
+| MySQL (JPA)   | Term           | 용어 + 동의어 관리, ES user_dictionary/synonym filter 원본 (AR) |
+| MySQL (JPA)   | IgnoredTerm    | 무시된 단어 관리 (용어 추출 시 제외 대상)                              |
+| MySQL (JPA)   | SlackWorkspace | 슬랙 워크스페이스 + 채널 모니터링 설정 (Aggregate Root)                |
+| MySQL (JPA)   | ReminderConfig | 리마인더 설정 (cron 표현식, 상위 N개) 관리                           |
+| Elasticsearch | SourceDocument | 원천 데이터 저장 및 용어 빈도 집계 (Slack, Gmail, Webhook 등)         |
 
 ---
 
@@ -60,21 +62,14 @@ class Term(
     @OneToMany(mappedBy = "term", cascade = [CascadeType.ALL], orphanRemoval = true)
     private val _synonyms: MutableList<Synonym> = mutableListOf(),
 
-    @OneToOne(mappedBy = "term", cascade = [CascadeType.ALL], orphanRemoval = true)
-    private var _ignoredTerm: IgnoredTerm? = null,
-
     @Column(nullable = false, updatable = false)
     val createdAt: LocalDateTime
 ) {
     val synonyms: List<Synonym> get() = _synonyms.toList()
-    val ignoredTerm: IgnoredTerm? get() = _ignoredTerm
-    val isIgnored: Boolean get() = _ignoredTerm != null
 
     fun addSynonym(name: String): Synonym
     fun removeSynonym(name: String)
     fun updateDefinition(newDefinition: String)
-    fun ignore(reason: String)
-    fun unignore()
 }
 
 @Entity
@@ -90,24 +85,28 @@ class Synonym(
     @JoinColumn(name = "term_id", nullable = false)
     val term: Term                       // 대표어 (canonical)
 )
+```
 
+### IgnoredTerm (무시된 단어) - Independent Entity
+
+```kotlin
 @Entity
 @Table(name = "ignored_terms")
 class IgnoredTerm(
-    @Id
-    val id: Long? = null,                // Term의 ID와 동일 (공유 PK)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long? = null,
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @MapsId
-    @JoinColumn(name = "id")
-    val term: Term,
-
-    @Column(nullable = false, updatable = false)
-    val ignoredAt: LocalDateTime,        // 무시 처리 시각
+    @Column(nullable = false, unique = true)
+    val name: String,                    // 무시할 단어
 
     @Column(nullable = false)
-    val reason: String                   // 무시 사유 (필수)
-)
+    var reason: String,                  // 무시 사유 (필수, 수정 가능)
+
+    @Column(nullable = false, updatable = false)
+    val createdAt: LocalDateTime         // 등록 시각
+) {
+    fun updateReason(newReason: String)
+}
 ```
 
 ### SlackWorkspace (슬랙 워크스페이스) - Aggregate Root
@@ -365,6 +364,7 @@ data class WebhookMetadata(
 ### Term Frequency Aggregation
 
 용어 빈도 집계는 Elasticsearch의 `terms` aggregation을 사용합니다.
+`exclude` 목록은 `ignored_terms` 테이블에서 조회한 무시된 단어입니다.
 
 ```json
 GET /source_documents/_search
@@ -443,7 +443,7 @@ sequenceDiagram
 // ES format: "에이피아이, 인터페이스 => API"
 
 fun buildSynonymRules(): List<String> {
-    return termRepository.findAllNotIgnoredWithSynonyms()
+    return termRepository.findAllWithSynonyms()
         .filter { it.synonyms.isNotEmpty() }
         .map { term ->
             val synonymNames = term.synonyms.joinToString(", ") { it.name }
@@ -461,7 +461,19 @@ Term의 name을 nori tokenizer의 user_dictionary_rules로 사용합니다.
 // ES format: ["삼성전자", "인공지능"]
 
 fun buildUserDictionaryRules(): List<String> {
-    return termRepository.findAllNotIgnored()
+    return termRepository.findAll()
+        .map { it.name }
+}
+```
+
+**Ignored Terms (용어 추출 시 제외)**:
+
+무시된 단어는 ES 인덱싱이 아닌 용어 빈도 집계 시 제외합니다.
+
+```kotlin
+// 용어 빈도 집계 시 무시된 단어 제외
+fun getIgnoredTermNames(): List<String> {
+    return ignoredTermRepository.findAll()
         .map { it.name }
 }
 ```
@@ -581,6 +593,7 @@ com.mkroo.termbase/
 ├── presentation/
 │   ├── controller/
 │   │   ├── TermController.kt
+│   │   ├── IgnoredTermController.kt
 │   │   ├── SlackWorkspaceController.kt
 │   │   └── ReminderController.kt
 │   ├── dto/
@@ -592,6 +605,7 @@ com.mkroo.termbase/
 ├── application/
 │   └── service/
 │       ├── TermService.kt
+│       ├── IgnoredTermService.kt
 │       ├── SlackWorkspaceService.kt
 │       ├── ReminderService.kt
 │       └── ReindexingService.kt
@@ -599,9 +613,10 @@ com.mkroo.termbase/
 ├── domain/
 │   ├── model/
 │   │   ├── term/
-│   │   │   ├── Term.kt                // Aggregate Root (동의어, 무시상태 포함)
-│   │   │   ├── Synonym.kt
-│   │   │   └── IgnoredTerm.kt
+│   │   │   ├── Term.kt                // Aggregate Root (동의어 포함)
+│   │   │   └── Synonym.kt
+│   │   ├── ignoredterm/
+│   │   │   └── IgnoredTerm.kt         // Independent Entity
 │   │   ├── slack/
 │   │   │   ├── SlackWorkspace.kt      // Aggregate Root (채널 포함)
 │   │   │   └── SlackChannel.kt
@@ -614,7 +629,8 @@ com.mkroo.termbase/
 │   │   └── reminder/
 │   │       └── ReminderConfig.kt
 │   ├── repository/
-│   │   ├── TermRepository.kt          // Aggregate Root만 Repository 제공
+│   │   ├── TermRepository.kt
+│   │   ├── IgnoredTermRepository.kt   // IgnoredTerm 전용 Repository
 │   │   ├── SlackWorkspaceRepository.kt
 │   │   ├── SourceDocumentRepository.kt
 │   │   └── ReminderConfigRepository.kt
@@ -627,6 +643,7 @@ com.mkroo.termbase/
     ├── persistence/
     │   ├── jpa/
     │   │   ├── JpaTermRepository.kt
+    │   │   ├── JpaIgnoredTermRepository.kt
     │   │   ├── JpaSlackWorkspaceRepository.kt
     │   │   └── JpaReminderConfigRepository.kt
     │   └── elasticsearch/
@@ -647,37 +664,44 @@ com.mkroo.termbase/
 
 ## Key Design Decisions
 
-### 1. IgnoredTerm은 별도 테이블, Term Aggregate에 포함
+### 1. IgnoredTerm은 Term과 독립된 엔티티
 
-`IgnoredTerm`은 별도 테이블(`ignored_terms`)로 분리하되, `Term` Aggregate Root에 포함됩니다.
+`IgnoredTerm`은 `Term`과 완전히 독립된 엔티티입니다. 용어 사전에 등록되지 않은 단어도 무시 처리할 수 있습니다.
 
 **설계:**
 
-- Term과 IgnoredTerm은 1:1 관계 (공유 PK 사용)
-- Term 삭제 시 IgnoredTerm도 cascade 삭제
-- `term.ignore()` / `term.unignore()` 메서드로 상태 변경
+- IgnoredTerm은 독자적인 PK를 가짐
+- Term, Synonym, IgnoredTerm 간의 name 중복 불허
+- `IgnoredTermRepository`를 통해 직접 관리
 
 **장점:**
 
-- 무시 상태를 별도 테이블로 관리하여 쿼리 최적화 가능
-- 용어의 정의와 동의어를 유지하면서 무시 처리 가능
-- 무시 해제 시 기존 정보 복원 용이
+- 용어 사전에 등록되지 않은 일반 단어도 무시 처리 가능
+- 무시된 단어의 수정/삭제가 용어 사전에 영향 없음
+- 용어 추출 시 무시 목록 조회가 단순해짐
 
-### 2. Term은 Aggregate Root
+**제약조건:**
 
-`Term`이 Aggregate Root이며, `Synonym`과 `IgnoredTerm`은 이에 종속됩니다.
+- 무시할 단어는 용어 사전(Term)에 정의되지 않은 용어여야 함
+- 무시할 단어는 동의어(Synonym)로 등록되지 않은 용어여야 함
+- 무시 사유는 필수
+
+### 2. Term은 Aggregate Root (동의어만 포함)
+
+`Term`이 Aggregate Root이며, `Synonym`만 이에 종속됩니다.
 
 **설계 원칙:**
 
-- 동의어/무시상태는 Term을 통해서만 접근/수정 가능
-- `TermRepository`만 제공 (별도의 SynonymRepository, IgnoredTermRepository 없음)
-- 동의어 추가/삭제, 무시 처리는 Term의 메서드를 통해 변경
+- 동의어는 Term을 통해서만 접근/수정 가능
+- `TermRepository`만 제공 (별도의 SynonymRepository 없음)
+- 동의어 추가/삭제는 Term의 메서드를 통해 변경
 
 **동의어 제약조건:**
 
 - 동의어는 용어 사전에 정의되지 않은 용어여야 함
 - 동의어는 다른 대표어의 동의어로 이미 등록되지 않아야 함
 - 동의어는 대표어와 동일할 수 없음
+- 동의어는 무시된 단어로 등록되지 않은 용어여야 함
 
 ### 3. SlackWorkspace는 Aggregate Root
 
@@ -705,7 +729,15 @@ Spring Data의 최소 `Repository<T, ID>` 인터페이스를 사용합니다.
 ```kotlin
 interface JpaTermRepository : Repository<Term, Long>, TermRepository {
     override fun save(term: Term): Term
-    override fun findById(id: Long): Term?
+    override fun findByName(name: String): Term?
+    // ...
+}
+
+interface JpaIgnoredTermRepository : Repository<IgnoredTerm, Long>, IgnoredTermRepository {
+    override fun save(ignoredTerm: IgnoredTerm): IgnoredTerm
+    override fun findByName(name: String): IgnoredTerm?
+    override fun deleteByName(name: String)
+    override fun existsByName(name: String): Boolean
     // ...
 }
 ```
