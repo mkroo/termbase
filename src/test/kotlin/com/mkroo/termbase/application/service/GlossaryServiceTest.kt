@@ -160,6 +160,55 @@ class GlossaryServiceTest : DescribeSpec() {
                     term shouldBe null
                 }
             }
+
+            describe("용어 검색") {
+                it("빈 쿼리로 검색하면 모든 용어를 반환한다") {
+                    glossaryService.addTerm(name = "API", definition = "Application Programming Interface")
+                    glossaryService.addTerm(name = "SDK", definition = "Software Development Kit")
+
+                    val terms = glossaryService.search("")
+
+                    terms.size shouldBe 2
+                }
+
+                it("공백 쿼리로 검색하면 모든 용어를 반환한다") {
+                    glossaryService.addTerm(name = "API", definition = "Application Programming Interface")
+
+                    val terms = glossaryService.search("   ")
+
+                    terms.size shouldBe 1
+                }
+
+                it("이름으로 검색할 수 있다") {
+                    glossaryService.addTerm(name = "API", definition = "Application Programming Interface")
+                    glossaryService.addTerm(name = "SDK", definition = "Software Development Kit")
+
+                    val terms = glossaryService.search("API")
+
+                    terms.size shouldBe 1
+                    terms.first().name shouldBe "API"
+                }
+
+                it("정의에 포함된 단어로 검색할 수 있다") {
+                    glossaryService.addTerm(name = "API", definition = "Application Programming Interface")
+                    glossaryService.addTerm(name = "SDK", definition = "Software Development Kit")
+
+                    val terms = glossaryService.search("Programming")
+
+                    terms.size shouldBe 1
+                    terms.first().name shouldBe "API"
+                }
+
+                it("동의어로 검색할 수 있다") {
+                    glossaryService.addTerm(name = "API", definition = "Application Programming Interface")
+                    synonymService.addSynonym(termName = "API", synonymName = "에이피아이")
+
+                    val terms = glossaryService.search("에이피아이")
+
+                    terms.size shouldBe 1
+                    terms.first().name shouldBe "API"
+                }
+            }
         }
     }
 }

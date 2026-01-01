@@ -3,6 +3,7 @@ package com.mkroo.termbase.application.service
 import com.mkroo.termbase.domain.model.term.Term
 import com.mkroo.termbase.domain.repository.IgnoredTermRepository
 import com.mkroo.termbase.domain.repository.TermRepository
+import com.mkroo.termbase.domain.service.SourceDocumentAnalyzer
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -12,6 +13,7 @@ class GlossaryService(
     private val termRepository: TermRepository,
     private val ignoredTermRepository: IgnoredTermRepository,
     private val reindexingService: ReindexingService,
+    private val sourceDocumentAnalyzer: SourceDocumentAnalyzer,
 ) {
     fun addTerm(
         name: String,
@@ -64,6 +66,29 @@ class GlossaryService(
     @Transactional(readOnly = true)
     fun findAll(): List<Term> = termRepository.findAll()
 
+    @Transactional(readOnly = true)
+    fun search(query: String): List<Term> {
+        if (query.isBlank()) {
+            return termRepository.findAll()
+        }
+        return termRepository.findAll().filter { term ->
+            term.name.contains(query, ignoreCase = true) ||
+                term.definition.contains(query, ignoreCase = true) ||
+                term.synonyms.any { it.name.contains(query, ignoreCase = true) }
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun findAllSortedByFrequency(): List<TermWithFrequency> =
+        termRepository
+            .findAll()
+            .map { term ->
+                TermWithFrequency(
+                    term = term,
+                    frequency = sourceDocumentAnalyzer.getTermFrequency(term.name),
+                )
+            }.sortedByDescending { it.frequency }
+
     internal fun findTermByName(name: String): Term =
         termRepository.findByName(name)
             ?: throw IllegalArgumentException("존재하지 않는 용어입니다: $name")
@@ -91,3 +116,8 @@ sealed interface TermAddResult {
         val conflictingTerms: List<String>,
     ) : TermAddResult
 }
+
+data class TermWithFrequency(
+    val term: Term,
+    val frequency: Long,
+)
