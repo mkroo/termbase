@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional
 class GlossaryService(
     private val termRepository: TermRepository,
     private val ignoredTermRepository: IgnoredTermRepository,
+    private val reindexingService: ReindexingService,
 ) {
     fun addTerm(
         name: String,
@@ -38,12 +39,14 @@ class GlossaryService(
 
         val term = Term(name = name, definition = definition)
         val savedTerm = termRepository.save(term)
+        reindexingService.markReindexingRequired()
         return TermAddResult.Success(savedTerm)
     }
 
     fun deleteTerm(name: String) {
         val term = findTermByName(name)
         termRepository.delete(term)
+        reindexingService.markReindexingRequired()
     }
 
     fun updateDefinition(
