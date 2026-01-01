@@ -5,7 +5,9 @@ import com.mkroo.termbase.domain.model.document.SlackMetadata
 import com.mkroo.termbase.domain.model.document.SourceDocument
 import com.mkroo.termbase.domain.model.document.TimeSeriesInterval
 import com.mkroo.termbase.domain.model.ignoredterm.IgnoredTerm
+import com.mkroo.termbase.domain.model.term.Term
 import com.mkroo.termbase.domain.repository.IgnoredTermRepository
+import com.mkroo.termbase.domain.repository.TermRepository
 import com.mkroo.termbase.domain.service.SourceDocumentAnalyzer
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.extensions.spring.SpringExtension
@@ -37,6 +39,9 @@ class ElasticsearchSourceDocumentAnalyzerTest : DescribeSpec() {
     @Autowired
     private lateinit var ignoredTermRepository: IgnoredTermRepository
 
+    @Autowired
+    private lateinit var termRepository: TermRepository
+
     init {
         extension(SpringExtension())
 
@@ -48,6 +53,7 @@ class ElasticsearchSourceDocumentAnalyzerTest : DescribeSpec() {
             indexOps.createWithMapping()
 
             ignoredTermRepository.findAll().forEach { ignoredTermRepository.delete(it) }
+            termRepository.findAll().forEach { termRepository.delete(it) }
         }
 
         afterEach {
@@ -57,6 +63,7 @@ class ElasticsearchSourceDocumentAnalyzerTest : DescribeSpec() {
             }
 
             ignoredTermRepository.findAll().forEach { ignoredTermRepository.delete(it) }
+            termRepository.findAll().forEach { termRepository.delete(it) }
         }
 
         describe("ElasticsearchSourceDocumentAnalyzer") {
@@ -355,6 +362,85 @@ class ElasticsearchSourceDocumentAnalyzerTest : DescribeSpec() {
 
                     result shouldBe 2
                 }
+
+                context("동의어 검색") {
+                    it("should include documents containing synonyms in frequency count") {
+                        // Given: Term with synonyms
+                        val term = Term(name = "Kubernetes", definition = "컨테이너 오케스트레이션 플랫폼")
+                        term.addSynonym("K8s")
+                        term.addSynonym("쿠버네티스")
+                        termRepository.save(term)
+
+                        // Document with exact term name
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-001",
+                                content = "Kubernetes 클러스터를 설정합니다",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-001",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = Instant.now(),
+                            ),
+                        )
+                        // Document with synonym "K8s"
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-002",
+                                content = "K8s 클러스터 헬스체크 스크립트입니다",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-002",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = Instant.now(),
+                            ),
+                        )
+                        // Document with synonym "쿠버네티스"
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-003",
+                                content = "쿠버네티스 노드 상태를 확인합니다",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-003",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = Instant.now(),
+                            ),
+                        )
+                        // Document without term or synonyms
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-004",
+                                content = "Docker 컨테이너를 빌드합니다",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-004",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = Instant.now(),
+                            ),
+                        )
+
+                        elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                        // When: Get frequency by term name
+                        val result = sourceDocumentAnalyzer.getTermFrequency("Kubernetes")
+
+                        // Then: Should count documents with term and synonyms
+                        result shouldBe 3
+                    }
+                }
             }
 
             describe("getTermFrequencyTimeSeries") {
@@ -488,6 +574,72 @@ class ElasticsearchSourceDocumentAnalyzerTest : DescribeSpec() {
 
                     result.shouldNotBeEmpty()
                     result.first().count shouldBeGreaterThanOrEqual 1
+                }
+
+                context("동의어 검색") {
+                    it("should include documents containing synonyms in time series count") {
+                        // Given: Term with synonyms
+                        val term = Term(name = "Kubernetes", definition = "컨테이너 오케스트레이션 플랫폼")
+                        term.addSynonym("K8s")
+                        term.addSynonym("쿠버네티스")
+                        termRepository.save(term)
+
+                        val now = Instant.now()
+                        // Document with exact term name
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-001",
+                                content = "Kubernetes 클러스터를 설정합니다",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-001",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = now,
+                            ),
+                        )
+                        // Document with synonym "K8s"
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-002",
+                                content = "K8s 클러스터 헬스체크 스크립트입니다",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-002",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = now.minusSeconds(60),
+                            ),
+                        )
+                        // Document with synonym "쿠버네티스"
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-003",
+                                content = "쿠버네티스 노드 상태를 확인합니다",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-003",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = now.minusSeconds(120),
+                            ),
+                        )
+
+                        elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                        // When: Get time series by term name
+                        val result = sourceDocumentAnalyzer.getTermFrequencyTimeSeries("Kubernetes", TimeSeriesInterval.DAY, 30)
+
+                        // Then: Should count documents with term and synonyms
+                        result.shouldNotBeEmpty()
+                        result.sumOf { it.count } shouldBe 3
+                    }
                 }
             }
 
@@ -690,6 +842,173 @@ class ElasticsearchSourceDocumentAnalyzerTest : DescribeSpec() {
                     result.shouldHaveSize(2)
                     result.first().id shouldBe "doc-002" // More recent document first
                     result.last().id shouldBe "doc-001"
+                }
+
+                context("동의어 검색") {
+                    it("should include documents containing synonyms when searching by term name") {
+                        // Given: Term with synonyms
+                        val term = Term(name = "Kubernetes", definition = "컨테이너 오케스트레이션 플랫폼")
+                        term.addSynonym("K8s")
+                        term.addSynonym("쿠버네티스")
+                        termRepository.save(term)
+
+                        val now = Instant.now()
+                        // Document with exact term name
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-001",
+                                content = "Kubernetes 클러스터를 설정합니다",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-001",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = now,
+                            ),
+                        )
+                        // Document with synonym "K8s"
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-002",
+                                content = "K8s 클러스터 헬스체크 스크립트 공유합니다",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-002",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = now.minusSeconds(60),
+                            ),
+                        )
+                        // Document with synonym "쿠버네티스"
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-003",
+                                content = "쿠버네티스 노드 상태를 확인해요",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-003",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = now.minusSeconds(120),
+                            ),
+                        )
+                        // Document without term or synonyms
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-004",
+                                content = "Docker 컨테이너를 빌드합니다",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-004",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = now.minusSeconds(180),
+                            ),
+                        )
+
+                        elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                        // When: Search by term name
+                        val result = sourceDocumentAnalyzer.searchDocumentsByTerm("Kubernetes", 10)
+
+                        // Then: Should include documents with term and synonyms
+                        result.shouldHaveSize(3)
+                        result.map { it.id } shouldBe listOf("doc-001", "doc-002", "doc-003")
+                    }
+
+                    it("should highlight synonyms in the content") {
+                        // Given: Term with synonyms
+                        val term = Term(name = "API", definition = "Application Programming Interface")
+                        term.addSynonym("에이피아이")
+                        termRepository.save(term)
+
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-001",
+                                content = "에이피아이 연동 작업을 시작합니다",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-001",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = Instant.now(),
+                            ),
+                        )
+
+                        elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                        // When: Search by term name
+                        val result = sourceDocumentAnalyzer.searchDocumentsByTerm("API", 10)
+
+                        // Then: Should include document with synonym and highlight it
+                        result.shouldHaveSize(1)
+                        result.first().highlightedContent shouldContain "<em>"
+                    }
+
+                    it("should return empty list when term has no registered synonyms and document does not contain term") {
+                        // Given: Term without synonyms
+                        val term = Term(name = "Docker", definition = "컨테이너 플랫폼")
+                        termRepository.save(term)
+
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-001",
+                                content = "Kubernetes 설정을 변경합니다",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-001",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = Instant.now(),
+                            ),
+                        )
+
+                        elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                        // When: Search by term name
+                        val result = sourceDocumentAnalyzer.searchDocumentsByTerm("Docker", 10)
+
+                        // Then: Should not find any documents
+                        result.shouldBeEmpty()
+                    }
+
+                    it("should search only by term name when term is not registered") {
+                        // Given: No term registered, just documents
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-001",
+                                content = "Kubernetes 클러스터를 설정합니다",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-001",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = Instant.now(),
+                            ),
+                        )
+
+                        elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                        // When: Search by unregistered term
+                        val result = sourceDocumentAnalyzer.searchDocumentsByTerm("Kubernetes", 10)
+
+                        // Then: Should find document by exact match
+                        result.shouldHaveSize(1)
+                    }
                 }
             }
         }

@@ -5,19 +5,98 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title th:text="${title} + ' - Termbase'">Termbase</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        notion: {
+                            bg: '#ffffff',
+                            'bg-dark': '#191919',
+                            'bg-secondary': '#f7f6f3',
+                            'bg-secondary-dark': '#202020',
+                            'bg-hover': '#efefef',
+                            'bg-hover-dark': '#2f2f2f',
+                            text: '#37352f',
+                            'text-dark': '#e6e6e6',
+                            'text-secondary': '#787774',
+                            'text-secondary-dark': '#9b9a97',
+                            border: '#e9e9e7',
+                            'border-dark': '#373737',
+                            accent: '#2383e2',
+                            'accent-hover': '#0077cc',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <script>
+        // Check for saved theme preference or default to system preference
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+    <style>
+        /* Notion-like scrollbar */
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d3d1cb; border-radius: 5px; }
+        ::-webkit-scrollbar-thumb:hover { background: #aeaca7; }
+        .dark ::-webkit-scrollbar-thumb { background: #4a4a4a; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #5a5a5a; }
+
+        /* Smooth transitions */
+        body, nav, main, div, table, th, td, input, textarea, select, button, a {
+            transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        }
+    </style>
 </head>
 <body>
-    <nav th:fragment="nav" class="bg-white shadow-sm border-b">
-        <div class="max-w-6xl mx-auto px-4 py-3">
-            <div class="flex items-center justify-between">
-                <a th:href="@{/glossary}" class="text-xl font-bold text-gray-800">Termbase</a>
-                <div class="flex gap-4">
-                    <a th:href="@{/glossary}" class="text-gray-600 hover:text-gray-900">용어 사전</a>
-                    <a th:href="@{/candidates}" class="text-gray-600 hover:text-gray-900">용어 후보</a>
-                    <a th:href="@{/ignored}" class="text-gray-600 hover:text-gray-900">무시된 단어</a>
+    <nav th:fragment="nav" class="bg-white dark:bg-notion-bg-dark border-b border-notion-border dark:border-notion-border-dark sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-6 h-11 flex items-center justify-between">
+            <div class="flex items-center gap-6">
+                <a th:href="@{/glossary}" class="text-sm font-semibold text-notion-text dark:text-notion-text-dark hover:text-notion-accent transition">
+                    Termbase
+                </a>
+                <div class="flex gap-1">
+                    <a th:href="@{/glossary}"
+                       class="px-3 py-1.5 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark rounded transition">
+                        용어 사전
+                    </a>
+                    <a th:href="@{/candidates}"
+                       class="px-3 py-1.5 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark rounded transition">
+                        용어 후보
+                    </a>
+                    <a th:href="@{/ignored}"
+                       class="px-3 py-1.5 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark rounded transition">
+                        무시된 단어
+                    </a>
                 </div>
             </div>
+            <button onclick="toggleTheme()" class="p-2 text-notion-text-secondary dark:text-notion-text-secondary-dark hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark rounded transition" title="테마 전환">
+                <svg class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+                <svg class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                </svg>
+            </button>
         </div>
     </nav>
+    <script>
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+            }
+        }
+    </script>
 </body>
 </html>

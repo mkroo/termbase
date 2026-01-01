@@ -3,43 +3,54 @@
 <head th:replace="~{layout/default :: head('무시된 단어')}">
     <title>무시된 단어</title>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-white dark:bg-notion-bg-dark min-h-screen">
     <nav th:replace="~{layout/default :: nav}"></nav>
 
-    <main class="max-w-4xl mx-auto px-4 py-6">
-        <div th:if="${success != null}" class="mb-4 p-4 bg-green-100 text-green-800 rounded-lg" th:text="${success}"></div>
-        <div th:if="${error != null}" class="mb-4 p-4 bg-red-100 text-red-800 rounded-lg" th:text="${error}"></div>
+    <main class="max-w-4xl mx-auto px-6 py-8">
+        <!-- Flash Messages -->
+        <div th:if="${success != null}" class="mb-4 px-4 py-3 text-sm bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded" th:text="${success}"></div>
+        <div th:if="${error != null}" class="mb-4 px-4 py-3 text-sm bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 rounded" th:text="${error}"></div>
 
+        <!-- Header -->
         <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-bold text-gray-900">무시된 단어</h1>
+            <h1 class="text-3xl font-bold text-notion-text dark:text-notion-text-dark">무시된 단어</h1>
             <a th:href="@{/ignored/new}"
-               class="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900 transition text-sm">
-                + 추가
+               class="inline-flex items-center gap-1.5 px-4 py-2 text-sm text-notion-accent hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark rounded transition whitespace-nowrap">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                추가
             </a>
         </div>
 
-        <div class="bg-white rounded-lg shadow">
-            <div th:if="${#lists.isEmpty(ignoredTerms)}" class="p-6 text-center text-gray-500">
-                등록된 무시된 단어가 없습니다.
-            </div>
+        <!-- Empty State -->
+        <div th:if="${#lists.isEmpty(ignoredTerms)}" class="text-center py-16 text-notion-text-secondary dark:text-notion-text-secondary-dark">
+            <svg class="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+            </svg>
+            <p>등록된 무시된 단어가 없습니다.</p>
+        </div>
 
-            <table th:unless="${#lists.isEmpty(ignoredTerms)}" class="w-full">
-                <thead class="bg-gray-50 border-b">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">단어</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">사유</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">등록일</th>
+        <!-- Table -->
+        <div th:unless="${#lists.isEmpty(ignoredTerms)}" class="border border-notion-border dark:border-notion-border-dark rounded-lg overflow-hidden">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark border-b border-notion-border dark:border-notion-border-dark">
+                        <th class="px-4 py-2 text-left text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider">단어</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider">사유</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider w-28">등록일</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200">
-                    <tr th:each="ignoredTerm : ${ignoredTerms}" class="hover:bg-gray-50">
-                        <td class="px-6 py-4">
+                <tbody class="divide-y divide-notion-border dark:divide-notion-border-dark">
+                    <tr th:each="ignoredTerm : ${ignoredTerms}" class="hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark">
+                        <td class="px-4 py-3">
                             <a th:href="@{/ignored/{name}(name=${ignoredTerm.name})}"
-                               class="text-blue-600 hover:text-blue-800 font-medium"
+                               class="text-notion-text dark:text-notion-text-dark hover:text-notion-accent font-medium"
                                th:text="${ignoredTerm.name}"></a>
                         </td>
-                        <td class="px-6 py-4 text-gray-500 text-sm" th:text="${ignoredTerm.reason}"></td>
-                        <td class="px-6 py-4 text-gray-500 text-sm"
+                        <td class="px-4 py-3 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark"
+                            th:text="${ignoredTerm.reason}"></td>
+                        <td class="px-4 py-3 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark"
                             th:text="${#temporals.format(ignoredTerm.createdAt, 'yyyy-MM-dd')}"></td>
                     </tr>
                 </tbody>

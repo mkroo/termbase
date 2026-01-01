@@ -93,16 +93,13 @@ class ElasticsearchSourceDocumentAnalyzer(
             return 0
         }
 
+        val searchTerms = collectSearchTerms(term)
+
         val query =
             NativeQuery
                 .builder()
-                .withQuery(
-                    Query.of { q ->
-                        q.match { m ->
-                            m.field("content").query(term)
-                        }
-                    },
-                ).withMaxResults(0)
+                .withQuery(buildSearchQuery(searchTerms))
+                .withMaxResults(0)
                 .build()
 
         val searchHits = elasticsearchOperations.search(query, SourceDocument::class.java)
@@ -127,6 +124,7 @@ class ElasticsearchSourceDocumentAnalyzer(
             }
 
         val fromDate = Instant.now().minusSeconds(days.toLong() * 24 * 60 * 60)
+        val searchTerms = collectSearchTerms(term)
 
         val query =
             NativeQuery
@@ -135,13 +133,8 @@ class ElasticsearchSourceDocumentAnalyzer(
                     Query.of { q ->
                         q.bool { b ->
                             b
-                                .must(
-                                    Query.of { mq ->
-                                        mq.match { m ->
-                                            m.field("content").query(term)
-                                        }
-                                    },
-                                ).filter(
+                                .must(buildSearchQuery(searchTerms))
+                                .filter(
                                     Query.of { fq ->
                                         fq.range { r ->
                                             r.date { d ->
@@ -194,16 +187,14 @@ class ElasticsearchSourceDocumentAnalyzer(
 
         val actualSize = size.coerceIn(1, MAX_DOCUMENT_SIZE)
 
+        // Collect all search terms: the term itself and its synonyms
+        val searchTerms = collectSearchTerms(term)
+
         val query =
             NativeQuery
                 .builder()
-                .withQuery(
-                    Query.of { q ->
-                        q.match { m ->
-                            m.field("content").query(term)
-                        }
-                    },
-                ).withHighlightQuery(
+                .withQuery(buildSearchQuery(searchTerms))
+                .withHighlightQuery(
                     HighlightQuery(
                         Highlight(
                             listOf(HighlightField("content")),
@@ -232,6 +223,39 @@ class ElasticsearchSourceDocumentAnalyzer(
             )
         }
     }
+
+    private fun collectSearchTerms(term: String): List<String> {
+        val registeredTerm = termRepository.findByName(term)
+        return if (registeredTerm != null) {
+            listOf(term) + registeredTerm.synonyms.map { it.name }
+        } else {
+            listOf(term)
+        }
+    }
+
+    private fun buildSearchQuery(searchTerms: List<String>): Query =
+        if (searchTerms.size == 1) {
+            Query.of { q ->
+                q.match { m ->
+                    m.field("content").query(searchTerms.first())
+                }
+            }
+        } else {
+            Query.of { q ->
+                q.bool { b ->
+                    b
+                        .should(
+                            searchTerms.map { searchTerm ->
+                                Query.of { sq ->
+                                    sq.match { m ->
+                                        m.field("content").query(searchTerm)
+                                    }
+                                }
+                            },
+                        ).minimumShouldMatch("1")
+                }
+            }
+        }
 
     companion object {
         const val MAX_DOCUMENT_SIZE = 100

@@ -3,8 +3,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function showMessage(message, isSuccess) {
         messageDiv.textContent = message;
-        messageDiv.className = 'mb-4 p-4 rounded-lg ' +
-            (isSuccess ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
+        if (isSuccess) {
+            messageDiv.className = 'mb-4 px-4 py-3 text-sm bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded';
+        } else {
+            messageDiv.className = 'mb-4 px-4 py-3 text-sm bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 rounded';
+        }
         messageDiv.classList.remove('hidden');
         setTimeout(() => messageDiv.classList.add('hidden'), 3000);
     }

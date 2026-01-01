@@ -3,154 +3,237 @@
 <head th:replace="~{layout/default :: head(${term.name})}">
     <title>용어 상세</title>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-white dark:bg-notion-bg-dark min-h-screen">
     <nav th:replace="~{layout/default :: nav}"></nav>
 
-    <main class="max-w-4xl mx-auto px-4 py-6">
+    <main class="max-w-3xl mx-auto px-6 py-8">
+        <!-- Back Link -->
         <div class="mb-6">
-            <a th:href="@{/glossary}" class="text-gray-600 hover:text-gray-900">&larr; 목록으로</a>
+            <a th:href="@{/glossary}" class="inline-flex items-center gap-1 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark hover:text-notion-text dark:hover:text-notion-text-dark transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+                목록으로
+            </a>
         </div>
 
-        <div th:if="${success != null}" class="mb-4 p-4 bg-green-100 text-green-800 rounded-lg" th:text="${success}"></div>
-        <div th:if="${warning != null}" class="mb-4 p-4 bg-yellow-100 text-yellow-800 rounded-lg" th:text="${warning}"></div>
-        <div th:if="${error != null}" class="mb-4 p-4 bg-red-100 text-red-800 rounded-lg" th:text="${error}"></div>
-        <div id="ajax-message" class="mb-4 p-4 rounded-lg hidden"></div>
+        <!-- Flash Messages -->
+        <div th:if="${success != null}" class="mb-4 px-4 py-3 text-sm bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded" th:text="${success}"></div>
+        <div th:if="${warning != null}" class="mb-4 px-4 py-3 text-sm bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800 rounded" th:text="${warning}"></div>
+        <div th:if="${error != null}" class="mb-4 px-4 py-3 text-sm bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 rounded" th:text="${error}"></div>
+        <div id="ajax-message" class="mb-4 px-4 py-3 text-sm rounded hidden"></div>
 
-        <div class="bg-white rounded-lg shadow p-6 mb-6">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900" th:text="${term.name}"></h1>
-                    <p class="text-sm text-gray-500 mt-1">
-                        생성일: <span th:text="${#temporals.format(term.createdAt, 'yyyy-MM-dd HH:mm')}"></span>
-                    </p>
-                </div>
-            </div>
+        <!-- Term Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-notion-text dark:text-notion-text-dark mb-2" th:text="${term.name}"></h1>
+            <p class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark">
+                생성일: <span th:text="${#temporals.format(term.createdAt, 'yyyy-MM-dd HH:mm')}"></span>
+            </p>
+        </div>
 
-            <form th:action="@{/glossary/definition}" method="post" class="mb-6">
+        <!-- Definition Section -->
+        <section class="mb-8">
+            <h2 class="text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider mb-3">정의</h2>
+            <form th:action="@{/glossary/definition}" method="post">
                 <input type="hidden" name="name" th:value="${term.name}">
-                <label for="definition" class="block text-sm font-medium text-gray-700 mb-1">정의</label>
-                <textarea id="definition" name="definition" rows="3"
-                          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2"
+                <textarea name="definition" rows="3"
+                          class="w-full px-3 py-2 text-sm bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                                 border border-notion-border dark:border-notion-border-dark rounded
+                                 text-notion-text dark:text-notion-text-dark
+                                 focus:outline-none focus:ring-1 focus:ring-notion-accent focus:border-notion-accent
+                                 resize-none"
                           th:text="${term.definition}"></textarea>
-                <button type="submit"
-                        class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm">
-                    정의 수정
-                </button>
-            </form>
-
-            <div class="border-t pt-4">
-                <form th:action="@{/glossary/delete}" method="post"
-                      onsubmit="return confirm('정말 이 용어를 삭제하시겠습니까?');">
-                    <input type="hidden" name="name" th:value="${term.name}">
+                <div class="mt-2 flex justify-end">
                     <button type="submit"
-                            class="text-red-600 hover:text-red-800 text-sm">
-                        용어 삭제
+                            class="text-sm text-notion-accent hover:text-notion-accent-hover transition whitespace-nowrap">
+                        저장
                     </button>
-                </form>
-            </div>
-        </div>
+                </div>
+            </form>
+        </section>
 
-        <div class="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">동의어</h2>
-
-            <div id="synonyms-list" class="space-y-2 mb-4">
-                <div th:if="${#lists.isEmpty(term.synonyms)}" class="text-gray-500 text-sm">
+        <!-- Synonyms Section -->
+        <section class="mb-8">
+            <h2 class="text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider mb-3">동의어</h2>
+            <div id="synonyms-list" class="space-y-1 mb-3">
+                <div th:if="${#lists.isEmpty(term.synonyms)}" class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark py-2">
                     등록된 동의어가 없습니다.
                 </div>
                 <div th:each="synonym : ${term.synonyms}"
-                     class="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg synonym-item">
-                    <span th:text="${synonym.name}"></span>
+                     class="flex justify-between items-center py-2 px-3 bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark rounded group synonym-item">
+                    <span class="text-sm text-notion-text dark:text-notion-text-dark" th:text="${synonym.name}"></span>
                     <button type="button"
                             th:data-term="${term.name}"
                             th:data-synonym="${synonym.name}"
-                            class="text-red-500 hover:text-red-700 delete-synonym-btn"
+                            class="text-notion-text-secondary dark:text-notion-text-secondary-dark hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition delete-synonym-btn"
                             title="삭제">
-                        &times;
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
                     </button>
                 </div>
             </div>
-
             <div class="flex gap-2">
-                <input type="text" id="new-synonym" placeholder="동의어 입력"
-                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                <input type="text" id="new-synonym" placeholder="새 동의어"
+                       class="flex-1 px-3 py-2 text-sm bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                              border border-notion-border dark:border-notion-border-dark rounded
+                              text-notion-text dark:text-notion-text-dark
+                              placeholder-notion-text-secondary dark:placeholder-notion-text-secondary-dark
+                              focus:outline-none focus:ring-1 focus:ring-notion-accent focus:border-notion-accent">
                 <button type="button" id="add-synonym-btn"
                         th:data-term="${term.name}"
-                        class="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900 transition text-sm">
+                        class="px-4 py-2 text-sm bg-notion-text dark:bg-notion-text-dark text-white dark:text-notion-bg-dark rounded hover:opacity-90 transition whitespace-nowrap">
                     추가
                 </button>
             </div>
-        </div>
+        </section>
 
-        <div class="bg-white rounded-lg shadow p-6 mb-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold text-gray-900">사용 빈도</h2>
-                <span class="text-2xl font-bold text-blue-600" th:text="${totalFrequency} + '회'"></span>
+        <!-- Frequency Section -->
+        <section class="mb-8">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider">사용 빈도</h2>
+                <span class="text-lg font-semibold text-notion-accent" th:text="${totalFrequency} + '회'"></span>
             </div>
 
-            <div class="flex gap-2 mb-4">
+            <!-- Interval Tabs -->
+            <div class="flex gap-1 mb-4">
                 <a th:href="@{/glossary/detail(name=${term.name}, interval='day', docSize=${docSize})}"
-                   th:class="${interval == 'day'} ? 'bg-blue-600 text-white px-3 py-1 rounded text-sm' : 'bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300'">
+                   th:class="${interval == 'day'} ? 'px-4 py-2 text-sm bg-notion-text dark:bg-notion-text-dark text-white dark:text-notion-bg-dark rounded whitespace-nowrap' : 'px-4 py-2 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark rounded transition whitespace-nowrap'">
                     일간
                 </a>
                 <a th:href="@{/glossary/detail(name=${term.name}, interval='week', docSize=${docSize})}"
-                   th:class="${interval == 'week'} ? 'bg-blue-600 text-white px-3 py-1 rounded text-sm' : 'bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300'">
+                   th:class="${interval == 'week'} ? 'px-4 py-2 text-sm bg-notion-text dark:bg-notion-text-dark text-white dark:text-notion-bg-dark rounded whitespace-nowrap' : 'px-4 py-2 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark rounded transition whitespace-nowrap'">
                     주간
                 </a>
                 <a th:href="@{/glossary/detail(name=${term.name}, interval='month', docSize=${docSize})}"
-                   th:class="${interval == 'month'} ? 'bg-blue-600 text-white px-3 py-1 rounded text-sm' : 'bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300'">
+                   th:class="${interval == 'month'} ? 'px-4 py-2 text-sm bg-notion-text dark:bg-notion-text-dark text-white dark:text-notion-bg-dark rounded whitespace-nowrap' : 'px-4 py-2 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark rounded transition whitespace-nowrap'">
                     월간
                 </a>
             </div>
 
-            <div th:if="${#lists.isEmpty(timeSeries)}" class="text-gray-500 text-sm py-4">
+            <!-- Time Series Chart -->
+            <div th:if="${#lists.isEmpty(timeSeries)}" class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark py-4">
                 해당 기간에 사용 기록이 없습니다.
             </div>
 
-            <div th:unless="${#lists.isEmpty(timeSeries)}" class="space-y-1">
-                <div th:each="ts : ${timeSeries}" class="flex items-center gap-2">
-                    <span class="text-sm text-gray-600 w-24" th:text="${ts.date}"></span>
-                    <div class="flex-1 bg-gray-200 rounded-full h-4 overflow-hidden">
-                        <div class="bg-blue-500 h-full rounded-full transition-all"
-                             th:style="${'width: ' + (totalFrequency > 0 ? (ts.count * 100 / totalFrequency) : 0) + '%'}"></div>
-                    </div>
-                    <span class="text-sm text-gray-600 w-12 text-right" th:text="${ts.count}"></span>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold text-gray-900">원본 메시지</h2>
-                <div class="flex items-center gap-2">
-                    <label class="text-sm text-gray-600">표시 개수:</label>
-                    <select onchange="window.location.href=this.value"
-                            class="px-2 py-1 border border-gray-300 rounded text-sm">
-                        <option th:each="size : ${docSizeOptions}"
-                                th:value="@{/glossary/detail(name=${term.name}, interval=${interval}, docSize=${size})}"
-                                th:selected="${docSize == size}"
-                                th:text="${size} + '개'"></option>
-                    </select>
-                </div>
+            <div th:unless="${#lists.isEmpty(timeSeries)}" class="mt-4">
+                <canvas id="frequencyChart" height="200"></canvas>
             </div>
 
-            <div th:if="${#lists.isEmpty(documents)}" class="text-gray-500 text-sm py-4">
+            <!-- Hidden data for Chart.js -->
+            <script th:inline="javascript">
+                window.chartData = {
+                    labels: /*[[${timeSeries.![#temporals.format(date, 'MM-dd')]}]]*/ [],
+                    counts: /*[[${timeSeries.![count]}]]*/ []
+                };
+            </script>
+        </section>
+
+        <!-- Documents Section -->
+        <section class="mb-8">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider">원본 메시지</h2>
+                <select onchange="window.location.href=this.value"
+                        class="px-2 py-1 text-xs bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                               border border-notion-border dark:border-notion-border-dark rounded
+                               text-notion-text dark:text-notion-text-dark focus:outline-none">
+                    <option th:each="size : ${docSizeOptions}"
+                            th:value="@{/glossary/detail(name=${term.name}, interval=${interval}, docSize=${size})}"
+                            th:selected="${docSize == size}"
+                            th:text="${size} + '개'"></option>
+                </select>
+            </div>
+
+            <div th:if="${#lists.isEmpty(documents)}" class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark py-4">
                 이 용어가 포함된 메시지가 없습니다.
             </div>
 
             <div th:unless="${#lists.isEmpty(documents)}" class="space-y-3">
-                <div th:each="doc : ${documents}" class="border border-gray-200 rounded-lg p-4">
-                    <div class="text-sm text-gray-500 mb-2">
-                        <span th:text="${#temporals.format(doc.timestamp.atZone(T(java.time.ZoneId).systemDefault()).toLocalDateTime(), 'yyyy-MM-dd HH:mm')}"></span>
-                    </div>
-                    <div class="text-gray-800" th:utext="${doc.highlightedContent}"></div>
+                <div th:each="doc : ${documents}"
+                     class="p-4 bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark rounded-lg">
+                    <div class="text-xs text-notion-text-secondary dark:text-notion-text-secondary-dark mb-2"
+                         th:text="${#temporals.format(doc.timestamp.atZone(T(java.time.ZoneId).systemDefault()).toLocalDateTime(), 'yyyy-MM-dd HH:mm')}"></div>
+                    <div class="text-sm text-notion-text dark:text-notion-text-dark leading-relaxed" th:utext="${doc.highlightedContent}"></div>
                 </div>
             </div>
-        </div>
+        </section>
+
+        <!-- Delete Section -->
+        <section class="pt-6 border-t border-notion-border dark:border-notion-border-dark">
+            <form th:action="@{/glossary/delete}" method="post"
+                  onsubmit="return confirm('정말 이 용어를 삭제하시겠습니까?');">
+                <input type="hidden" name="name" th:value="${term.name}">
+                <button type="submit"
+                        class="text-sm text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition">
+                    용어 삭제
+                </button>
+            </form>
+        </section>
     </main>
 
     <style>
-        em { background-color: #fef08a; font-style: normal; padding: 0 2px; border-radius: 2px; }
+        em { background-color: rgba(35, 131, 226, 0.15); font-style: normal; padding: 0 2px; border-radius: 2px; }
+        .dark em { background-color: rgba(35, 131, 226, 0.3); }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script th:src="@{/js/glossary.js}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const canvas = document.getElementById('frequencyChart');
+            if (canvas && window.chartData && window.chartData.labels.length > 0) {
+                const isDark = document.documentElement.classList.contains('dark');
+                const textColor = isDark ? '#9b9a97' : '#787774';
+                const gridColor = isDark ? '#373737' : '#e9e9e7';
+                const barColor = '#2383e2';
+
+                new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: window.chartData.labels,
+                        datasets: [{
+                            label: '사용 빈도',
+                            data: window.chartData.counts,
+                            backgroundColor: barColor,
+                            borderRadius: 4,
+                            barThickness: 'flex',
+                            maxBarThickness: 40,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: isDark ? '#2f2f2f' : '#fff',
+                                titleColor: isDark ? '#e6e6e6' : '#37352f',
+                                bodyColor: isDark ? '#e6e6e6' : '#37352f',
+                                borderColor: gridColor,
+                                borderWidth: 1,
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: textColor, font: { size: 11 } }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: gridColor },
+                                ticks: {
+                                    color: textColor,
+                                    font: { size: 11 },
+                                    stepSize: 1,
+                                    callback: function(value) {
+                                        if (Number.isInteger(value)) return value;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>

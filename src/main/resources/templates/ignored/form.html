@@ -3,46 +3,64 @@
 <head th:replace="~{layout/default :: head('무시된 단어 추가')}">
     <title>무시된 단어 추가</title>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-white dark:bg-notion-bg-dark min-h-screen">
     <nav th:replace="~{layout/default :: nav}"></nav>
 
-    <main class="max-w-2xl mx-auto px-4 py-6">
+    <main class="max-w-xl mx-auto px-6 py-8">
+        <!-- Back Link -->
         <div class="mb-6">
-            <a th:href="@{/ignored}" class="text-gray-600 hover:text-gray-900">&larr; 목록으로</a>
+            <a th:href="@{/ignored}" class="inline-flex items-center gap-1 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark hover:text-notion-text dark:hover:text-notion-text-dark transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+                목록으로
+            </a>
         </div>
 
-        <div th:if="${error != null}" class="mb-4 p-4 bg-red-100 text-red-800 rounded-lg" th:text="${error}"></div>
+        <!-- Header -->
+        <h1 class="text-3xl font-bold text-notion-text dark:text-notion-text-dark mb-8">무시된 단어 추가</h1>
 
-        <div class="bg-white rounded-lg shadow p-6">
-            <h1 class="text-2xl font-bold text-gray-900 mb-6">무시된 단어 추가</h1>
+        <!-- Error Message -->
+        <div th:if="${error != null}"
+             class="mb-4 px-4 py-3 text-sm bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 rounded"
+             th:text="${error}"></div>
 
-            <form th:action="@{/ignored}" method="post" class="space-y-4">
-                <div>
-                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">단어</label>
-                    <input type="text" id="name" name="name" required
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                           placeholder="무시할 단어 입력">
-                </div>
+        <!-- Form -->
+        <form th:action="@{/ignored}" method="post" class="space-y-6">
+            <div>
+                <label for="name" class="block text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider mb-2">단어</label>
+                <input type="text" id="name" name="name" required
+                       class="w-full px-3 py-2 text-sm bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                              border border-notion-border dark:border-notion-border-dark rounded
+                              text-notion-text dark:text-notion-text-dark
+                              placeholder-notion-text-secondary dark:placeholder-notion-text-secondary-dark
+                              focus:outline-none focus:ring-1 focus:ring-notion-accent focus:border-notion-accent"
+                       placeholder="무시할 단어">
+            </div>
 
-                <div>
-                    <label for="reason" class="block text-sm font-medium text-gray-700 mb-1">사유</label>
-                    <textarea id="reason" name="reason" rows="3" required
-                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              placeholder="무시 사유 입력 (필수)"></textarea>
-                </div>
+            <div>
+                <label for="reason" class="block text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider mb-2">사유</label>
+                <textarea id="reason" name="reason" rows="3" required
+                          class="w-full px-3 py-2 text-sm bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                                 border border-notion-border dark:border-notion-border-dark rounded
+                                 text-notion-text dark:text-notion-text-dark
+                                 placeholder-notion-text-secondary dark:placeholder-notion-text-secondary-dark
+                                 focus:outline-none focus:ring-1 focus:ring-notion-accent focus:border-notion-accent
+                                 resize-none"
+                          placeholder="무시 사유"></textarea>
+            </div>
 
-                <div class="flex gap-2">
-                    <button type="submit"
-                            class="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900 transition">
-                        추가
-                    </button>
-                    <a th:href="@{/ignored}"
-                       class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition">
-                        취소
-                    </a>
-                </div>
-            </form>
-        </div>
+            <div class="flex gap-3 pt-2">
+                <button type="submit"
+                        class="px-4 py-2 text-sm bg-notion-accent text-white rounded hover:opacity-90 transition whitespace-nowrap">
+                    추가
+                </button>
+                <a th:href="@{/ignored}"
+                   class="px-4 py-2 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark rounded transition whitespace-nowrap">
+                    취소
+                </a>
+            </div>
+        </form>
     </main>
 </body>
 </html>

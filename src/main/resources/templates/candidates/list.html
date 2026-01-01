@@ -3,84 +3,89 @@
 <head th:replace="~{layout/default :: head('용어 후보')}">
     <title>용어 후보</title>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-white dark:bg-notion-bg-dark min-h-screen">
     <nav th:replace="~{layout/default :: nav}"></nav>
 
-    <main class="max-w-6xl mx-auto px-4 py-6">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-bold text-gray-900">용어 후보</h1>
-        </div>
+    <main class="max-w-5xl mx-auto px-6 py-8">
+        <!-- Header -->
+        <h1 class="text-3xl font-bold text-notion-text dark:text-notion-text-dark mb-6">용어 후보</h1>
 
         <!-- Flash Messages -->
-        <div th:if="${success != null}" class="mb-4 p-4 bg-green-100 text-green-800 rounded-lg" th:text="${success}"></div>
-        <div th:if="${error != null}" class="mb-4 p-4 bg-red-100 text-red-800 rounded-lg" th:text="${error}"></div>
-        <div th:if="${warning != null}" class="mb-4 p-4 bg-yellow-100 text-yellow-800 rounded-lg" th:text="${warning}"></div>
+        <div th:if="${success != null}" class="mb-4 px-4 py-3 text-sm bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded" th:text="${success}"></div>
+        <div th:if="${error != null}" class="mb-4 px-4 py-3 text-sm bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 rounded" th:text="${error}"></div>
+        <div th:if="${warning != null}" class="mb-4 px-4 py-3 text-sm bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800 rounded" th:text="${warning}"></div>
 
         <!-- Search Form -->
         <form th:action="@{/candidates}" method="get" class="mb-6">
             <div class="flex gap-2">
-                <input type="text" name="q" th:value="${query}"
-                       placeholder="용어 검색..."
-                       class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="text" name="q" th:value="${query}" placeholder="검색..."
+                       class="flex-1 px-3 py-2 text-sm bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                              border border-notion-border dark:border-notion-border-dark rounded
+                              text-notion-text dark:text-notion-text-dark
+                              placeholder-notion-text-secondary dark:placeholder-notion-text-secondary-dark
+                              focus:outline-none focus:ring-1 focus:ring-notion-accent focus:border-notion-accent">
                 <button type="submit"
-                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                        class="px-4 py-2 text-sm bg-notion-text dark:bg-notion-text-dark text-white dark:text-notion-bg-dark rounded hover:opacity-90 transition whitespace-nowrap">
                     검색
                 </button>
                 <a th:if="${query != null and query != ''}" th:href="@{/candidates}"
-                   class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">
+                   class="px-4 py-2 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark rounded transition whitespace-nowrap">
                     초기화
                 </a>
             </div>
         </form>
 
         <!-- Empty State -->
-        <div th:if="${#lists.isEmpty(candidates)}" class="text-center py-12 text-gray-500">
+        <div th:if="${#lists.isEmpty(candidates)}" class="text-center py-16 text-notion-text-secondary dark:text-notion-text-secondary-dark">
+            <svg class="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
             <p th:if="${query != null and query != ''}">검색 결과가 없습니다.</p>
-            <p th:unless="${query != null and query != ''}">용어 후보가 없습니다. 문서를 먼저 인덱싱해주세요.</p>
+            <p th:unless="${query != null and query != ''}">용어 후보가 없습니다.</p>
         </div>
 
         <!-- Candidates Table -->
-        <div th:unless="${#lists.isEmpty(candidates)}" class="bg-white rounded-lg shadow overflow-hidden">
+        <div th:unless="${#lists.isEmpty(candidates)}" class="border border-notion-border dark:border-notion-border-dark rounded-lg overflow-hidden">
             <table class="w-full">
-                <thead class="bg-gray-50 border-b">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900 w-1/4">용어</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900 w-24">빈도</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">정의 입력</th>
-                        <th class="px-6 py-3 text-right text-sm font-semibold text-gray-900 w-24">작업</th>
+                <thead>
+                    <tr class="bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark border-b border-notion-border dark:border-notion-border-dark">
+                        <th class="px-4 py-2 text-left text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider" style="width: 25%;">용어</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider" style="width: 10%;">빈도</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider" colspan="2">정의 입력 / 작업</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200">
-                    <tr th:each="candidate : ${candidates}" class="hover:bg-gray-50">
-                        <form th:action="@{/candidates}" method="post">
-                            <input type="hidden" name="name" th:value="${candidate.term}">
-                            <input type="hidden" name="q" th:value="${query}">
-                            <td class="px-6 py-4">
-                                <span class="font-medium text-gray-900" th:text="${candidate.term}"></span>
-                            </td>
-                            <td class="px-6 py-4">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                                      th:text="${candidate.count}"></span>
-                            </td>
-                            <td class="px-6 py-4">
-                                <input type="text" name="definition" required
-                                       placeholder="정의를 입력하세요..."
-                                       class="w-full px-3 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                            </td>
-                            <td class="px-6 py-4 text-right">
+                <tbody class="divide-y divide-notion-border dark:divide-notion-border-dark">
+                    <tr th:each="candidate : ${candidates}" class="hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark">
+                        <td class="px-4 py-3">
+                            <span class="font-medium text-notion-text dark:text-notion-text-dark" th:text="${candidate.term}"></span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-notion-accent/10 text-notion-accent"
+                                  th:text="${candidate.count}"></span>
+                        </td>
+                        <td class="px-4 py-3" colspan="2">
+                            <form th:action="@{/candidates}" method="post" class="flex gap-2 items-center">
+                                <input type="hidden" name="name" th:value="${candidate.term}">
+                                <input type="hidden" name="q" th:value="${query}">
+                                <input type="text" name="definition" required placeholder="정의를 입력하세요..."
+                                       class="flex-1 px-3 py-1.5 text-sm bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                                              border border-notion-border dark:border-notion-border-dark rounded
+                                              text-notion-text dark:text-notion-text-dark
+                                              placeholder-notion-text-secondary dark:placeholder-notion-text-secondary-dark
+                                              focus:outline-none focus:ring-1 focus:ring-notion-accent focus:border-notion-accent">
                                 <button type="submit"
-                                        class="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition">
+                                        class="text-sm text-notion-accent hover:text-notion-accent-hover transition whitespace-nowrap">
                                     등록
                                 </button>
-                            </td>
-                        </form>
+                            </form>
+                        </td>
                     </tr>
                 </tbody>
             </table>
         </div>
 
         <!-- Info -->
-        <div th:unless="${#lists.isEmpty(candidates)}" class="mt-4 text-sm text-gray-500">
+        <div th:unless="${#lists.isEmpty(candidates)}" class="mt-4 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark">
             총 <span th:text="${#lists.size(candidates)}"></span>개의 용어 후보
         </div>
     </main>

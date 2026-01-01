@@ -3,15 +3,18 @@
 <head th:replace="~{layout/default :: head('페이지를 찾을 수 없음')}">
     <title>페이지를 찾을 수 없음</title>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-white dark:bg-notion-bg-dark min-h-screen">
     <nav th:replace="~{layout/default :: nav}"></nav>
 
-    <main class="max-w-2xl mx-auto px-4 py-12 text-center">
-        <h1 class="text-6xl font-bold text-gray-300 mb-4">404</h1>
-        <p class="text-xl text-gray-600 mb-8">요청하신 페이지를 찾을 수 없습니다.</p>
+    <main class="max-w-xl mx-auto px-6 py-24 text-center">
+        <div class="text-8xl font-bold text-notion-border dark:text-notion-border-dark mb-4">404</div>
+        <p class="text-lg text-notion-text-secondary dark:text-notion-text-secondary-dark mb-8">요청하신 페이지를 찾을 수 없습니다.</p>
         <a th:href="@{/glossary}"
-           class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
-            용어 사전으로 돌아가기
+           class="inline-flex items-center gap-2 px-4 py-2 text-sm bg-notion-text dark:bg-notion-text-dark text-white dark:text-notion-bg-dark rounded hover:opacity-90 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            용어 사전으로
         </a>
     </main>
 </body>
