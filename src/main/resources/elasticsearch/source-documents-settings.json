@@ -10,7 +10,6 @@
       "noun_filter": {
         "type": "nori_part_of_speech",
         "stoptags": [
-          "NNB",
           "NP",
           "NR",
           "VV",

@@ -1,6 +1,7 @@
 package com.mkroo.termbase.application.service
 
 import com.mkroo.termbase.domain.model.reindex.ReindexingStatus
+import com.mkroo.termbase.domain.model.term.Term
 import com.mkroo.termbase.domain.repository.ReindexingStatusRepository
 import com.mkroo.termbase.domain.repository.TermRepository
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchTemplate
@@ -19,11 +20,55 @@ class ReindexingService(
     companion object {
         const val ALIAS_NAME = "source_documents"
         const val INDEX_PREFIX = "source_documents_v"
+
+        val STOPTAGS =
+            listOf(
+                "NP",
+                "NR",
+                "VV",
+                "VA",
+                "VX",
+                "VCP",
+                "VCN",
+                "MM",
+                "MAG",
+                "MAJ",
+                "IC",
+                "JKS",
+                "JKC",
+                "JKG",
+                "JKO",
+                "JKB",
+                "JKV",
+                "JKQ",
+                "JC",
+                "JX",
+                "EP",
+                "EF",
+                "EC",
+                "ETN",
+                "ETM",
+                "XPN",
+                "XSN",
+                "XSV",
+                "XSA",
+                "XR",
+                "SF",
+                "SE",
+                "SSO",
+                "SSC",
+                "SC",
+                "SY",
+                "SN",
+                "SP",
+            )
     }
 
     @Transactional
     fun reindex(): ReindexingResult {
-        val userDictionaryRules = termRepository.findAll().map { it.name }
+        val terms = termRepository.findAll()
+        val userDictionaryRules = terms.map { it.name }
+        val synonymRules = buildSynonymRules(terms)
         val newIndexName = generateNewIndexName()
 
         val status = getOrCreateStatus(newIndexName)
@@ -34,7 +79,7 @@ class ReindexingService(
                 null
             }
 
-        createIndexWithUserDictionary(newIndexName, userDictionaryRules)
+        createIndexWithUserDictionary(newIndexName, userDictionaryRules, synonymRules)
 
         val reindexedCount =
             if (currentIndex != null) {
@@ -57,8 +102,17 @@ class ReindexingService(
             newIndex = newIndexName,
             documentCount = reindexedCount,
             userDictionarySize = userDictionaryRules.size,
+            synonymRulesSize = synonymRules.size,
         )
     }
+
+    private fun buildSynonymRules(terms: List<Term>): List<String> =
+        terms
+            .filter { it.synonyms.isNotEmpty() }
+            .map { term ->
+                val synonymNames = term.synonyms.joinToString(", ") { it.name }
+                "$synonymNames => ${term.name.lowercase()}"
+            }
 
     @Transactional
     fun markReindexingRequired() {
@@ -98,6 +152,7 @@ class ReindexingService(
     private fun createIndexWithUserDictionary(
         indexName: String,
         userDictionaryRules: List<String>,
+        synonymRules: List<String>,
     ) {
         elasticsearchTemplate.execute { client ->
             val userDictRulesJson =
@@ -106,6 +161,15 @@ class ReindexingService(
                 } else {
                     ""
                 }
+
+            val synonymRulesJson =
+                if (synonymRules.isNotEmpty()) {
+                    synonymRules.joinToString(",") { "\"$it\"" }
+                } else {
+                    ""
+                }
+
+            val stoptagsJson = STOPTAGS.joinToString(",") { "\"$it\"" }
 
             val settingsJson =
                 """
@@ -123,10 +187,29 @@ class ReindexingService(
                 }}
                         }
                       },
+                      "filter": {
+                        "noun_filter": {
+                          "type": "nori_part_of_speech",
+                          "stoptags": [$stoptagsJson]
+                        }${if (synonymRulesJson.isNotEmpty()) {
+                    """,
+                        "synonym_filter": {
+                          "type": "synonym",
+                          "synonyms": [$synonymRulesJson]
+                        }"""
+                } else {
+                    ""
+                }}
+                      },
                       "analyzer": {
                         "korean_analyzer": {
                           "type": "custom",
-                          "tokenizer": "nori_user_dict_tokenizer"
+                          "tokenizer": "nori_user_dict_tokenizer",
+                          "filter": ["lowercase", "noun_filter"${if (synonymRulesJson.isNotEmpty()) {
+                    """, "synonym_filter""""
+                } else {
+                    ""
+                }}]
                         }
                       }
                     }
@@ -211,4 +294,5 @@ data class ReindexingResult(
     val newIndex: String,
     val documentCount: Long,
     val userDictionarySize: Int,
+    val synonymRulesSize: Int,
 )

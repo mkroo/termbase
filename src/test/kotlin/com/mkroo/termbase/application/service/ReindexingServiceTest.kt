@@ -77,6 +77,18 @@ class ReindexingServiceTest : DescribeSpec() {
                     result.userDictionarySize shouldBe 2
                 }
 
+                it("should include synonym rules when terms have synonyms") {
+                    val term = termRepository.save(Term(name = "API", definition = "Application Programming Interface"))
+                    term.addSynonym("에이피아이")
+                    term.addSynonym("인터페이스")
+                    termRepository.save(term)
+
+                    val result = reindexingService.reindex()
+
+                    result.userDictionarySize shouldBe 1
+                    result.synonymRulesSize shouldBe 1
+                }
+
                 it("should reindex documents from old index to new index") {
                     reindexingService.reindex()
 
