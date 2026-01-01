@@ -70,9 +70,24 @@ flowchart LR
 
 # 애플리케이션 실행 (docker-compose 자동 시작)
 ./gradlew bootRun
+
+# 테스트 데이터와 함께 실행 (Testcontainers + 시드 데이터)
+./gradlew bootTestRun
 ```
 
 `bootRun` 실행 시 Spring Boot Docker Compose가 자동으로 MySQL과 Elasticsearch를 시작합니다.
+
+### 테스트 데이터
+
+`bootTestRun` 실행 시 Testcontainers를 사용하여 MySQL과 Elasticsearch를 시작하고, 다음 시드 데이터가 자동으로 삽입됩니다:
+
+| 파일                                                   | 설명                               |
+|------------------------------------------------------|----------------------------------|
+| `src/main/resources/seed-data/terms.json`            | 샘플 용어 (API, REST, MSA 등)         |
+| `src/main/resources/seed-data/ignored-terms.json`    | 무시할 단어 (하다, 되다 등)                |
+| `src/main/resources/seed-data/source-documents.json` | 샘플 소스 문서 (Slack, Gmail, Webhook) |
+
+시드 데이터는 JSON 파일을 수정하여 커스터마이징할 수 있습니다.
 
 ### 테스트
 
