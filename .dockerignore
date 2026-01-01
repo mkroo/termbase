@@ -1,0 +1,28 @@
+# Build outputs
+build/
+.gradle/
+out/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+*.md
+docs/
+
+# Test files
+src/test/
+
+# Local config
+*.local.*

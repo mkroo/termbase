@@ -1,0 +1,12 @@
+services:
+  termbase:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - DATASOURCE_URL=jdbc:mysql://username:password@your-mysql-host:3306/termbase
+      - ELASTICSEARCH_URIS=http://your-elasticsearch-host:9200
+      - JAVA_OPTS=-Xms512m -Xmx1024m
+    restart: unless-stopped
