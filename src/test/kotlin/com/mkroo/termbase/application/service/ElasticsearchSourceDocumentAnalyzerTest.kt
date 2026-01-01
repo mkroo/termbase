@@ -64,6 +64,15 @@ class ElasticsearchSourceDocumentAnalyzerTest : DescribeSpec() {
                     result.shouldBeEmpty()
                 }
 
+                it("should return empty list when index does not exist") {
+                    val indexOps = elasticsearchOperations.indexOps(SourceDocument::class.java)
+                    indexOps.delete()
+
+                    val result = sourceDocumentAnalyzer.getTopFrequentTerms(10)
+
+                    result.shouldBeEmpty()
+                }
+
                 it("should return top frequent terms from slack messages") {
                     val timestamp = Instant.now()
                     val slackMetadata =

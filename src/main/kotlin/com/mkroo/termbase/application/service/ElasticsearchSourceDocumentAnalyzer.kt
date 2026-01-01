@@ -5,6 +5,7 @@ import co.elastic.clients.elasticsearch._types.aggregations.TermsExclude
 import com.mkroo.termbase.domain.model.document.SourceDocument
 import com.mkroo.termbase.domain.model.document.TermFrequency
 import com.mkroo.termbase.domain.repository.IgnoredTermRepository
+import com.mkroo.termbase.domain.repository.TermRepository
 import com.mkroo.termbase.domain.service.SourceDocumentAnalyzer
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchAggregations
 import org.springframework.data.elasticsearch.client.elc.NativeQuery
@@ -15,9 +16,15 @@ import org.springframework.stereotype.Service
 class ElasticsearchSourceDocumentAnalyzer(
     private val elasticsearchOperations: ElasticsearchOperations,
     private val ignoredTermRepository: IgnoredTermRepository,
+    private val termRepository: TermRepository,
 ) : SourceDocumentAnalyzer {
     override fun getTopFrequentTerms(size: Int): List<TermFrequency> {
-        val ignoredTermNames = ignoredTermRepository.findAll().map { it.name }
+        val indexOps = elasticsearchOperations.indexOps(SourceDocument::class.java)
+        if (!indexOps.exists()) {
+            return emptyList()
+        }
+
+        val excludedTerms = collectExcludedTerms()
 
         val query =
             NativeQuery
@@ -27,9 +34,9 @@ class ElasticsearchSourceDocumentAnalyzer(
                     Aggregation.of { agg ->
                         agg.terms { terms ->
                             val termsBuilder = terms.field("content").size(size)
-                            if (ignoredTermNames.isNotEmpty()) {
+                            if (excludedTerms.isNotEmpty()) {
                                 termsBuilder.exclude(
-                                    TermsExclude.of { ex -> ex.terms(ignoredTermNames) },
+                                    TermsExclude.of { ex -> ex.terms(excludedTerms.toList()) },
                                 )
                             }
                             termsBuilder
@@ -58,5 +65,14 @@ class ElasticsearchSourceDocumentAnalyzer(
                 count = bucket.docCount(),
             )
         }
+    }
+
+    private fun collectExcludedTerms(): Set<String> {
+        val ignoredTermNames = ignoredTermRepository.findAll().map { it.name.lowercase() }
+        val terms = termRepository.findAll()
+        val registeredTermNames = terms.map { it.name.lowercase() }
+        val synonymNames = terms.flatMap { it.synonyms.map { s -> s.name.lowercase() } }
+
+        return (ignoredTermNames + registeredTermNames + synonymNames).toSet()
     }
 }
