@@ -51,6 +51,30 @@ class GlossaryControllerTest : DescribeSpec() {
                         .andExpect(status().isOk)
                         .andExpect(view().name("glossary/list"))
                         .andExpect(model().attributeExists("terms"))
+                        .andExpect(model().attributeExists("q"))
+                        .andExpect(model().attributeExists("sort"))
+                }
+
+                it("검색어로 용어를 필터링한다") {
+                    glossaryService.addTerm("API", "Application Programming Interface")
+                    glossaryService.addTerm("SDK", "Software Development Kit")
+
+                    mockMvc
+                        .perform(get("/glossary").param("q", "API"))
+                        .andExpect(status().isOk)
+                        .andExpect(view().name("glossary/list"))
+                        .andExpect(model().attributeExists("terms"))
+                }
+
+                it("빈도순으로 정렬한다") {
+                    glossaryService.addTerm("API", "Application Programming Interface")
+                    glossaryService.addTerm("SDK", "Software Development Kit")
+
+                    mockMvc
+                        .perform(get("/glossary").param("sort", "frequency"))
+                        .andExpect(status().isOk)
+                        .andExpect(view().name("glossary/list"))
+                        .andExpect(model().attributeExists("terms"))
                 }
             }
 
@@ -72,7 +96,7 @@ class GlossaryControllerTest : DescribeSpec() {
                                 .param("name", "API")
                                 .param("definition", "Application Programming Interface"),
                         ).andExpect(status().is3xxRedirection)
-                        .andExpect(redirectedUrl("/glossary/API"))
+                        .andExpect(redirectedUrl("/glossary/detail?name=API"))
                 }
 
                 it("이미 존재하는 용어를 추가하면 에러와 함께 폼으로 리다이렉트한다") {
@@ -114,7 +138,7 @@ class GlossaryControllerTest : DescribeSpec() {
                                 .param("name", "인공지능")
                                 .param("definition", "인간의 지능을 모방한 기술"),
                         ).andExpect(status().is3xxRedirection)
-                        .andExpect(redirectedUrl("/glossary/인공지능"))
+                        .andExpect(redirectedUrl("/glossary/detail?name=%EC%9D%B8%EA%B3%B5%EC%A7%80%EB%8A%A5"))
                         .andExpect(flash().attributeExists("warning"))
                 }
 
@@ -133,46 +157,96 @@ class GlossaryControllerTest : DescribeSpec() {
                 }
             }
 
-            describe("GET /glossary/{name}") {
+            describe("GET /glossary/detail") {
                 it("용어 상세 페이지를 반환한다") {
                     glossaryService.addTerm("API", "Application Programming Interface")
 
                     mockMvc
-                        .perform(get("/glossary/API"))
+                        .perform(get("/glossary/detail").param("name", "API"))
+                        .andExpect(status().isOk)
+                        .andExpect(view().name("glossary/detail"))
+                        .andExpect(model().attributeExists("term"))
+                        .andExpect(model().attributeExists("timeSeries"))
+                        .andExpect(model().attributeExists("documents"))
+                        .andExpect(model().attributeExists("totalFrequency"))
+                        .andExpect(model().attributeExists("interval"))
+                        .andExpect(model().attributeExists("docSize"))
+                        .andExpect(model().attributeExists("docSizeOptions"))
+                }
+
+                it("일간 간격으로 조회할 수 있다") {
+                    glossaryService.addTerm("API", "Application Programming Interface")
+
+                    mockMvc
+                        .perform(get("/glossary/detail").param("name", "API").param("interval", "day"))
+                        .andExpect(status().isOk)
+                        .andExpect(view().name("glossary/detail"))
+                        .andExpect(model().attribute("interval", "day"))
+                }
+
+                it("월간 간격으로 조회할 수 있다") {
+                    glossaryService.addTerm("API", "Application Programming Interface")
+
+                    mockMvc
+                        .perform(get("/glossary/detail").param("name", "API").param("interval", "month"))
+                        .andExpect(status().isOk)
+                        .andExpect(view().name("glossary/detail"))
+                        .andExpect(model().attribute("interval", "month"))
+                }
+
+                it("존재하지 않는 용어를 조회하면 예외가 발생한다") {
+                    mockMvc
+                        .perform(get("/glossary/detail").param("name", "없는용어"))
+                        .andExpect(status().isNotFound)
+                }
+
+                it("슬래시가 포함된 용어를 조회할 수 있다") {
+                    glossaryService.addTerm("CI/CD", "Continuous Integration/Continuous Deployment")
+
+                    mockMvc
+                        .perform(get("/glossary/detail").param("name", "CI/CD"))
                         .andExpect(status().isOk)
                         .andExpect(view().name("glossary/detail"))
                         .andExpect(model().attributeExists("term"))
                 }
 
-                it("존재하지 않는 용어를 조회하면 예외가 발생한다") {
+                it("공백이 포함된 용어를 조회할 수 있다") {
+                    glossaryService.addTerm("공영 주차장", "공공 주차장")
+
                     mockMvc
-                        .perform(get("/glossary/없는용어"))
-                        .andExpect(status().isNotFound)
+                        .perform(get("/glossary/detail").param("name", "공영 주차장"))
+                        .andExpect(status().isOk)
+                        .andExpect(view().name("glossary/detail"))
+                        .andExpect(model().attributeExists("term"))
                 }
             }
 
-            describe("POST /glossary/{name}/definition") {
+            describe("POST /glossary/definition") {
                 it("용어 정의를 수정하고 상세 페이지로 리다이렉트한다") {
                     glossaryService.addTerm("API", "기존 정의")
 
                     mockMvc
                         .perform(
-                            post("/glossary/API/definition")
+                            post("/glossary/definition")
                                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "API")
                                 .param("definition", "새로운 정의"),
                         ).andExpect(status().is3xxRedirection)
-                        .andExpect(redirectedUrl("/glossary/API"))
+                        .andExpect(redirectedUrl("/glossary/detail?name=API"))
                         .andExpect(flash().attributeExists("success"))
                 }
             }
 
-            describe("POST /glossary/{name}/delete") {
+            describe("POST /glossary/delete") {
                 it("용어를 삭제하고 목록 페이지로 리다이렉트한다") {
                     glossaryService.addTerm("API", "Application Programming Interface")
 
                     mockMvc
-                        .perform(post("/glossary/API/delete"))
-                        .andExpect(status().is3xxRedirection)
+                        .perform(
+                            post("/glossary/delete")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "API"),
+                        ).andExpect(status().is3xxRedirection)
                         .andExpect(redirectedUrl("/glossary"))
                         .andExpect(flash().attributeExists("success"))
                 }

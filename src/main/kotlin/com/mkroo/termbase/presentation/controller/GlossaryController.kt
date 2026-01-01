@@ -2,23 +2,39 @@ package com.mkroo.termbase.presentation.controller
 
 import com.mkroo.termbase.application.service.GlossaryService
 import com.mkroo.termbase.application.service.TermAddResult
+import com.mkroo.termbase.domain.model.document.TimeSeriesInterval
+import com.mkroo.termbase.domain.service.SourceDocumentAnalyzer
 import org.springframework.stereotype.Controller
 import org.springframework.ui.Model
 import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.servlet.mvc.support.RedirectAttributes
+import org.springframework.web.util.UriUtils
+import java.nio.charset.StandardCharsets
 
 @Controller
 @RequestMapping("/glossary")
 class GlossaryController(
     private val glossaryService: GlossaryService,
+    private val sourceDocumentAnalyzer: SourceDocumentAnalyzer,
 ) {
     @GetMapping
-    fun list(model: Model): String {
-        model.addAttribute("terms", glossaryService.findAll())
+    fun list(
+        @RequestParam(required = false) q: String?,
+        @RequestParam(required = false, defaultValue = "name") sort: String,
+        model: Model,
+    ): String {
+        val terms =
+            when {
+                sort == "frequency" -> glossaryService.findAllSortedByFrequency().map { it.term }
+                !q.isNullOrBlank() -> glossaryService.search(q)
+                else -> glossaryService.findAll()
+            }
+        model.addAttribute("terms", terms)
+        model.addAttribute("q", q ?: "")
+        model.addAttribute("sort", sort)
         return "glossary/list"
     }
 
@@ -33,7 +49,7 @@ class GlossaryController(
     ): String =
         when (val result = glossaryService.addTerm(name, definition)) {
             is TermAddResult.Success -> {
-                "redirect:/glossary/${result.term.name}"
+                "redirect:/glossary/detail?name=${encodeTermName(result.term.name)}"
             }
 
             is TermAddResult.AlreadyExists -> {
@@ -56,40 +72,67 @@ class GlossaryController(
                     "warning",
                     "용어가 추가되었지만, 기존 용어와 충돌이 있습니다: ${result.conflictingTerms.joinToString(", ")}",
                 )
-                "redirect:/glossary/${result.name}"
+                "redirect:/glossary/detail?name=${encodeTermName(result.name)}"
             }
         }
 
-    @GetMapping("/{name}")
+    @GetMapping("/detail")
     fun detail(
-        @PathVariable name: String,
+        @RequestParam name: String,
+        @RequestParam(defaultValue = "week") interval: String,
+        @RequestParam(defaultValue = "10") docSize: Int,
         model: Model,
     ): String {
         val term = glossaryService.findByName(name) ?: throw TermNotFoundException(name)
+        val timeSeriesInterval =
+            when (interval.lowercase()) {
+                "day" -> TimeSeriesInterval.DAY
+                "month" -> TimeSeriesInterval.MONTH
+                else -> TimeSeriesInterval.WEEK
+            }
+        val days =
+            when (timeSeriesInterval) {
+                TimeSeriesInterval.DAY -> 30
+                TimeSeriesInterval.WEEK -> 12 * 7
+                TimeSeriesInterval.MONTH -> 365
+            }
+
+        val timeSeries = sourceDocumentAnalyzer.getTermFrequencyTimeSeries(term.name, timeSeriesInterval, days)
+        val documents = sourceDocumentAnalyzer.searchDocumentsByTerm(term.name, docSize.coerceIn(1, 100))
+        val totalFrequency = sourceDocumentAnalyzer.getTermFrequency(term.name)
+
         model.addAttribute("term", term)
+        model.addAttribute("timeSeries", timeSeries)
+        model.addAttribute("documents", documents)
+        model.addAttribute("totalFrequency", totalFrequency)
+        model.addAttribute("interval", interval)
+        model.addAttribute("docSize", docSize)
+        model.addAttribute("docSizeOptions", listOf(10, 20, 50, 100))
         return "glossary/detail"
     }
 
-    @PostMapping("/{name}/definition")
+    @PostMapping("/definition")
     fun updateDefinition(
-        @PathVariable name: String,
+        @RequestParam name: String,
         @RequestParam definition: String,
         redirectAttributes: RedirectAttributes,
     ): String {
         glossaryService.updateDefinition(name, definition)
         redirectAttributes.addFlashAttribute("success", "정의가 수정되었습니다.")
-        return "redirect:/glossary/$name"
+        return "redirect:/glossary/detail?name=${encodeTermName(name)}"
     }
 
-    @PostMapping("/{name}/delete")
+    @PostMapping("/delete")
     fun deleteTerm(
-        @PathVariable name: String,
+        @RequestParam name: String,
         redirectAttributes: RedirectAttributes,
     ): String {
         glossaryService.deleteTerm(name)
         redirectAttributes.addFlashAttribute("success", "용어가 삭제되었습니다: $name")
         return "redirect:/glossary"
     }
+
+    private fun encodeTermName(name: String): String = UriUtils.encode(name, StandardCharsets.UTF_8)
 }
 
 class TermNotFoundException(

@@ -15,10 +15,32 @@
             </a>
         </div>
 
+        <div class="bg-white rounded-lg shadow p-4 mb-6">
+            <form th:action="@{/glossary}" method="get" class="flex flex-wrap gap-4 items-center">
+                <div class="flex-1 min-w-[200px]">
+                    <input type="text" name="q" th:value="${q}" placeholder="용어, 정의, 동의어 검색..."
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-600">정렬:</label>
+                    <select name="sort" onchange="this.form.submit()"
+                            class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="name" th:selected="${sort == 'name'}">이름순</option>
+                        <option value="frequency" th:selected="${sort == 'frequency'}">빈도순</option>
+                    </select>
+                </div>
+                <button type="submit" class="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900 transition">
+                    검색
+                </button>
+                <a th:href="@{/glossary}" class="text-gray-600 hover:text-gray-900 text-sm">초기화</a>
+            </form>
+        </div>
+
         <div th:if="${success != null}" class="mb-4 p-4 bg-green-100 text-green-800 rounded-lg" th:text="${success}"></div>
 
         <div th:if="${#lists.isEmpty(terms)}" class="text-center py-12 text-gray-500">
-            등록된 용어가 없습니다.
+            <span th:if="${q != null && !q.isEmpty()}">검색 결과가 없습니다.</span>
+            <span th:unless="${q != null && !q.isEmpty()}">등록된 용어가 없습니다.</span>
         </div>
 
         <div th:unless="${#lists.isEmpty(terms)}" class="bg-white rounded-lg shadow overflow-hidden">
@@ -34,7 +56,7 @@
                 <tbody class="divide-y divide-gray-200">
                     <tr th:each="term : ${terms}" class="hover:bg-gray-50">
                         <td class="px-6 py-4">
-                            <a th:href="@{/glossary/{name}(name=${term.name})}"
+                            <a th:href="@{/glossary/detail(name=${term.name})}"
                                class="text-blue-600 hover:text-blue-800 font-medium"
                                th:text="${term.name}"></a>
                         </td>

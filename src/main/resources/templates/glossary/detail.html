@@ -26,7 +26,8 @@
                 </div>
             </div>
 
-            <form th:action="@{/glossary/{name}/definition(name=${term.name})}" method="post" class="mb-6">
+            <form th:action="@{/glossary/definition}" method="post" class="mb-6">
+                <input type="hidden" name="name" th:value="${term.name}">
                 <label for="definition" class="block text-sm font-medium text-gray-700 mb-1">정의</label>
                 <textarea id="definition" name="definition" rows="3"
                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2"
@@ -38,8 +39,9 @@
             </form>
 
             <div class="border-t pt-4">
-                <form th:action="@{/glossary/{name}/delete(name=${term.name})}" method="post"
+                <form th:action="@{/glossary/delete}" method="post"
                       onsubmit="return confirm('정말 이 용어를 삭제하시겠습니까?');">
+                    <input type="hidden" name="name" th:value="${term.name}">
                     <button type="submit"
                             class="text-red-600 hover:text-red-800 text-sm">
                         용어 삭제
@@ -48,7 +50,7 @@
             </div>
         </div>
 
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
             <h2 class="text-lg font-semibold text-gray-900 mb-4">동의어</h2>
 
             <div id="synonyms-list" class="space-y-2 mb-4">
@@ -78,8 +80,77 @@
                 </button>
             </div>
         </div>
+
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-gray-900">사용 빈도</h2>
+                <span class="text-2xl font-bold text-blue-600" th:text="${totalFrequency} + '회'"></span>
+            </div>
+
+            <div class="flex gap-2 mb-4">
+                <a th:href="@{/glossary/detail(name=${term.name}, interval='day', docSize=${docSize})}"
+                   th:class="${interval == 'day'} ? 'bg-blue-600 text-white px-3 py-1 rounded text-sm' : 'bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300'">
+                    일간
+                </a>
+                <a th:href="@{/glossary/detail(name=${term.name}, interval='week', docSize=${docSize})}"
+                   th:class="${interval == 'week'} ? 'bg-blue-600 text-white px-3 py-1 rounded text-sm' : 'bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300'">
+                    주간
+                </a>
+                <a th:href="@{/glossary/detail(name=${term.name}, interval='month', docSize=${docSize})}"
+                   th:class="${interval == 'month'} ? 'bg-blue-600 text-white px-3 py-1 rounded text-sm' : 'bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300'">
+                    월간
+                </a>
+            </div>
+
+            <div th:if="${#lists.isEmpty(timeSeries)}" class="text-gray-500 text-sm py-4">
+                해당 기간에 사용 기록이 없습니다.
+            </div>
+
+            <div th:unless="${#lists.isEmpty(timeSeries)}" class="space-y-1">
+                <div th:each="ts : ${timeSeries}" class="flex items-center gap-2">
+                    <span class="text-sm text-gray-600 w-24" th:text="${ts.date}"></span>
+                    <div class="flex-1 bg-gray-200 rounded-full h-4 overflow-hidden">
+                        <div class="bg-blue-500 h-full rounded-full transition-all"
+                             th:style="${'width: ' + (totalFrequency > 0 ? (ts.count * 100 / totalFrequency) : 0) + '%'}"></div>
+                    </div>
+                    <span class="text-sm text-gray-600 w-12 text-right" th:text="${ts.count}"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-gray-900">원본 메시지</h2>
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-600">표시 개수:</label>
+                    <select onchange="window.location.href=this.value"
+                            class="px-2 py-1 border border-gray-300 rounded text-sm">
+                        <option th:each="size : ${docSizeOptions}"
+                                th:value="@{/glossary/detail(name=${term.name}, interval=${interval}, docSize=${size})}"
+                                th:selected="${docSize == size}"
+                                th:text="${size} + '개'"></option>
+                    </select>
+                </div>
+            </div>
+
+            <div th:if="${#lists.isEmpty(documents)}" class="text-gray-500 text-sm py-4">
+                이 용어가 포함된 메시지가 없습니다.
+            </div>
+
+            <div th:unless="${#lists.isEmpty(documents)}" class="space-y-3">
+                <div th:each="doc : ${documents}" class="border border-gray-200 rounded-lg p-4">
+                    <div class="text-sm text-gray-500 mb-2">
+                        <span th:text="${#temporals.format(doc.timestamp.atZone(T(java.time.ZoneId).systemDefault()).toLocalDateTime(), 'yyyy-MM-dd HH:mm')}"></span>
+                    </div>
+                    <div class="text-gray-800" th:utext="${doc.highlightedContent}"></div>
+                </div>
+            </div>
+        </div>
     </main>
 
+    <style>
+        em { background-color: #fef08a; font-style: normal; padding: 0 2px; border-radius: 2px; }
+    </style>
     <script th:src="@{/js/glossary.js}"></script>
 </body>
 </html>
