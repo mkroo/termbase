@@ -1,0 +1,146 @@
+[
+  {
+    "id": "slack-001",
+    "content": "API 게이트웨이 설정 관련해서 논의가 필요합니다. REST API와 GraphQL 중 어떤 방식으로 진행할지 결정해야 해요.",
+    "metadata": {
+      "source": "slack",
+      "workspaceId": "T0001",
+      "channelId": "C-dev-backend",
+      "messageId": "msg-001",
+      "userId": "U-kim"
+    },
+    "timestamp": "2024-12-15T09:30:00Z"
+  },
+  {
+    "id": "slack-002",
+    "content": "Kubernetes 클러스터에 새로운 서비스를 배포했습니다. MSA 구조로 설계되어 있어서 각 서비스별로 독립적인 스케일링이 가능해요.",
+    "metadata": {
+      "source": "slack",
+      "workspaceId": "T0001",
+      "channelId": "C-dev-infra",
+      "messageId": "msg-002",
+      "userId": "U-lee"
+    },
+    "timestamp": "2024-12-15T10:15:00Z"
+  },
+  {
+    "id": "slack-003",
+    "content": "CI/CD 파이프라인 구축 완료했습니다. GitHub Actions로 자동 배포 설정했고, Docker 이미지 빌드도 자동화했어요.",
+    "metadata": {
+      "source": "slack",
+      "workspaceId": "T0001",
+      "channelId": "C-dev-infra",
+      "messageId": "msg-003",
+      "userId": "U-park"
+    },
+    "timestamp": "2024-12-15T11:00:00Z"
+  },
+  {
+    "id": "slack-004",
+    "content": "OAuth 2.0 인증 흐름 구현 중인데, JWT 토큰 만료 시간을 얼마로 설정할지 논의해봐요.",
+    "metadata": {
+      "source": "slack",
+      "workspaceId": "T0001",
+      "channelId": "C-dev-backend",
+      "messageId": "msg-004",
+      "userId": "U-choi"
+    },
+    "timestamp": "2024-12-15T14:20:00Z"
+  },
+  {
+    "id": "slack-005",
+    "content": "WebSocket 연결이 자주 끊기는 문제가 있네요. 하트비트 인터벌을 조정해봐야 할 것 같습니다.",
+    "metadata": {
+      "source": "slack",
+      "workspaceId": "T0001",
+      "channelId": "C-dev-backend",
+      "messageId": "msg-005",
+      "userId": "U-jung"
+    },
+    "timestamp": "2024-12-15T15:45:00Z"
+  },
+  {
+    "id": "slack-006",
+    "content": "API 문서 업데이트 부탁드려요. REST 엔드포인트 추가된 부분 반영해주세요.",
+    "metadata": {
+      "source": "slack",
+      "workspaceId": "T0001",
+      "channelId": "C-dev-backend",
+      "messageId": "msg-006",
+      "userId": "U-kim"
+    },
+    "timestamp": "2024-12-16T09:00:00Z"
+  },
+  {
+    "id": "slack-007",
+    "content": "Kubernetes Pod 자동 스케일링 설정했어요. CPU 사용량 80% 넘으면 자동으로 스케일 아웃 됩니다.",
+    "metadata": {
+      "source": "slack",
+      "workspaceId": "T0001",
+      "channelId": "C-dev-infra",
+      "messageId": "msg-007",
+      "userId": "U-lee"
+    },
+    "timestamp": "2024-12-16T10:30:00Z"
+  },
+  {
+    "id": "slack-008",
+    "content": "Docker 컨테이너 이미지 사이즈 최적화 작업 중입니다. 멀티스테이지 빌드로 용량 줄이고 있어요.",
+    "metadata": {
+      "source": "slack",
+      "workspaceId": "T0001",
+      "channelId": "C-dev-infra",
+      "messageId": "msg-008",
+      "userId": "U-park"
+    },
+    "timestamp": "2024-12-16T11:15:00Z"
+  },
+  {
+    "id": "gmail-001",
+    "content": "안녕하세요, MSA 전환 프로젝트 관련하여 미팅 요청드립니다. API 설계 검토와 Kubernetes 배포 전략에 대해 논의하고 싶습니다.",
+    "metadata": {
+      "source": "gmail",
+      "messageId": "gmail-msg-001",
+      "threadId": "thread-001",
+      "from": "tech-lead@company.com",
+      "to": ["dev-team@company.com"],
+      "cc": ["manager@company.com"],
+      "subject": "MSA 전환 프로젝트 미팅 요청"
+    },
+    "timestamp": "2024-12-14T08:00:00Z"
+  },
+  {
+    "id": "gmail-002",
+    "content": "CI/CD 파이프라인 구축 완료 보고드립니다. Docker 기반으로 빌드 환경을 구성하였고, Kubernetes에 자동 배포되도록 설정했습니다.",
+    "metadata": {
+      "source": "gmail",
+      "messageId": "gmail-msg-002",
+      "threadId": "thread-002",
+      "from": "devops@company.com",
+      "to": ["tech-lead@company.com", "dev-team@company.com"],
+      "cc": [],
+      "subject": "CI/CD 파이프라인 구축 완료 보고"
+    },
+    "timestamp": "2024-12-15T17:00:00Z"
+  },
+  {
+    "id": "webhook-001",
+    "content": "배포 완료: API 서버 v2.1.0이 프로덕션 환경에 배포되었습니다. REST API 성능 개선 및 GraphQL 지원이 추가되었습니다.",
+    "metadata": {
+      "source": "webhook",
+      "webhookId": "deploy-webhook-001",
+      "eventType": "deployment.completed"
+    },
+    "timestamp": "2024-12-16T14:00:00Z"
+  },
+  {
+    "id": "webhook-002",
+    "content": "알림: Kubernetes 클러스터에서 Pod 스케일 아웃이 발생했습니다. 현재 API 서버 인스턴스가 3개에서 5개로 증가했습니다.",
+    "metadata": {
+      "source": "webhook",
+      "webhookId": "k8s-webhook-001",
+      "eventType": "pod.scaled"
+    },
+    "timestamp": "2024-12-16T15:30:00Z"
+  }
+]

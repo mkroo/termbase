@@ -1,0 +1,56 @@
+[
+  {
+    "name": "API",
+    "definition": "Application Programming Interface의 약자로, 서로 다른 소프트웨어 시스템 간의 상호작용을 위한 인터페이스",
+    "synonyms": ["Application Programming Interface", "에이피아이"]
+  },
+  {
+    "name": "REST",
+    "definition": "Representational State Transfer의 약자로, 웹 서비스 설계를 위한 아키텍처 스타일",
+    "synonyms": ["RESTful", "레스트"]
+  },
+  {
+    "name": "MSA",
+    "definition": "Microservices Architecture의 약자로, 애플리케이션을 작은 독립적인 서비스로 분리하는 아키텍처 패턴",
+    "synonyms": ["마이크로서비스", "Microservices Architecture"]
+  },
+  {
+    "name": "CI/CD",
+    "definition": "Continuous Integration/Continuous Deployment의 약자로, 지속적 통합 및 지속적 배포를 위한 개발 방법론",
+    "synonyms": ["지속적 통합", "지속적 배포"]
+  },
+  {
+    "name": "Kubernetes",
+    "definition": "컨테이너화된 애플리케이션의 배포, 확장 및 관리를 자동화하는 오픈소스 플랫폼",
+    "synonyms": ["K8s", "쿠버네티스"]
+  },
+  {
+    "name": "Docker",
+    "definition": "애플리케이션을 컨테이너로 패키징하여 배포하는 오픈소스 플랫폼",
+    "synonyms": ["도커", "컨테이너"]
+  },
+  {
+    "name": "GraphQL",
+    "definition": "API를 위한 쿼리 언어로, 클라이언트가 필요한 데이터만 요청할 수 있게 해주는 기술",
+    "synonyms": ["그래프큐엘"]
+  },
+  {
+    "name": "OAuth",
+    "definition": "Open Authorization의 약자로, 제3자 애플리케이션에게 리소스 접근 권한을 부여하는 인증 프로토콜",
+    "synonyms": ["오오스", "Open Authorization"]
+  },
+  {
+    "name": "JWT",
+    "definition": "JSON Web Token의 약자로, 당사자 간 정보를 안전하게 전송하기 위한 토큰 기반 인증 방식",
+    "synonyms": ["JSON Web Token", "제이더블유티"]
+  },
+  {
+    "name": "WebSocket",
+    "definition": "클라이언트와 서버 간의 양방향 실시간 통신을 지원하는 프로토콜",
+    "synonyms": ["웹소켓", "WS"]
+  },
+  {
+    "name": "gRPC",
+    "definition": "Google에서 개발한 고성능 원격 프로시저 호출(RPC) 프레임워크"
+  }
+]

@@ -1,0 +1,12 @@
+# Local development profile with data seeding
+# Usage: ./gradlew bootTestRun (with SPRING_PROFILES_ACTIVE=local)
+# Or: ./gradlew bootRun -Dspring.profiles.active=local
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+logging:
+  level:
+    com.mkroo.termbase.application.seed: info
