@@ -411,6 +411,93 @@ GET /source_documents/_search
 
 ---
 
+## Bulk Insert Service
+
+### Overview
+
+대량의 SourceDocument를 효율적으로 추가하기 위한 Application Service입니다.
+Slack Webhook, 배치 작업 등 다양한 상황에서 사용됩니다.
+
+```mermaid
+sequenceDiagram
+    participant Caller as Caller (Webhook/Batch)
+    participant Service as SourceDocumentService
+    participant ES as Elasticsearch
+
+    Caller ->> Service: bulkInsert(documents)
+    Service ->> ES: bulk index request
+    ES -->> Service: BulkResponse
+    Service -->> Caller: BulkInsertResult
+```
+
+### Usage Examples
+
+**Slack Webhook Handler:**
+
+```kotlin
+@Component
+class SlackWebhookHandler(
+    private val sourceDocumentService: SourceDocumentService,
+) {
+    fun handleMessages(messages: List<SlackMessage>) {
+        val documents = messages.map { it.toSourceDocument() }
+        val result = sourceDocumentService.bulkInsert(documents)
+        logger.info("Indexed ${result.successCount}/${result.totalCount} documents")
+    }
+}
+```
+
+**Batch Job:**
+
+```kotlin
+@Component
+class MessageIndexingBatch(
+    private val slackClient: SlackApiClient,
+    private val sourceDocumentService: SourceDocumentService,
+) {
+    fun indexRecentMessages(since: Instant) {
+        val messages = slackClient.fetchMessages(since)
+        val documents = messages.map { it.toSourceDocument() }
+        sourceDocumentService.bulkInsert(documents)
+    }
+}
+```
+
+### Implementation
+
+```kotlin
+@Service
+class SourceDocumentService(
+    private val sourceDocumentRepository: SourceDocumentRepository,
+) {
+    fun bulkInsert(documents: List<SourceDocument>): BulkInsertResult {
+        if (documents.isEmpty()) {
+            return BulkInsertResult.empty()
+        }
+        return sourceDocumentRepository.saveAll(documents)
+    }
+}
+
+data class BulkInsertResult(
+    val totalCount: Int,
+    val successCount: Int,
+    val failureCount: Int,
+    val failures: List<BulkInsertFailure>,
+) {
+    companion object {
+        fun empty() = BulkInsertResult(0, 0, 0, emptyList())
+    }
+}
+
+data class BulkInsertFailure(
+    val index: Int,
+    val documentId: String?,
+    val reason: String,
+)
+```
+
+---
+
 ## Elasticsearch Synchronization
 
 MySQL의 용어/동의어 데이터를 Elasticsearch의 user_dictionary와 synonym filter에 적용하는 흐름:
@@ -608,7 +695,7 @@ com.mkroo.termbase/
 │       ├── IgnoredTermService.kt
 │       ├── SlackWorkspaceService.kt
 │       ├── ReminderService.kt
-│       └── ReindexingService.kt
+│       └── SourceDocumentService.kt
 │
 ├── domain/
 │   ├── model/
@@ -652,7 +739,6 @@ com.mkroo.termbase/
     │   └── slack/
     │       └── SlackApiClient.kt
     ├── scheduler/
-    │   ├── ReindexingScheduler.kt
     │   └── ReminderScheduler.kt
     └── config/
         ├── JpaConfig.kt
