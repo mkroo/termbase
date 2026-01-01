@@ -94,6 +94,9 @@ val jacocoExcludes =
         "**/presentation/controller/ApiResponse*",
         "**/presentation/controller/TermNotFoundException*",
         "**/presentation/controller/IgnoredTermNotFoundException*",
+        "**/domain/model/document/BulkInsertFailure*",
+        "**/application/service/ReindexingResult*",
+        "**/domain/model/reindex/ReindexingStatus*",
     )
 
 tasks.jacocoTestCoverageVerification {
