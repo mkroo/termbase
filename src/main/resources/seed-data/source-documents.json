@@ -96,6 +96,30 @@
     "timestamp": "2024-12-16T11:15:00Z"
   },
   {
+    "id": "slack-009",
+    "content": "마이크로서비스 간 통신을 gRPC로 변경하면 어떨까요? REST보다 성능이 좋고 Protocol Buffers로 타입 안전성도 확보할 수 있어요.",
+    "metadata": {
+      "source": "slack",
+      "workspaceId": "T0001",
+      "channelId": "C-dev-backend",
+      "messageId": "msg-009",
+      "userId": "U-choi"
+    },
+    "timestamp": "2024-12-16T14:00:00Z"
+  },
+  {
+    "id": "slack-010",
+    "content": "gRPC 스트리밍 기능 테스트 완료했습니다. 실시간 데이터 전송에 WebSocket 대신 gRPC 스트리밍 쓰는 것도 고려해볼만 해요.",
+    "metadata": {
+      "source": "slack",
+      "workspaceId": "T0001",
+      "channelId": "C-dev-backend",
+      "messageId": "msg-010",
+      "userId": "U-jung"
+    },
+    "timestamp": "2024-12-17T09:30:00Z"
+  },
+  {
     "id": "gmail-001",
     "content": "안녕하세요, MSA 전환 프로젝트 관련하여 미팅 요청드립니다. API 설계 검토와 Kubernetes 배포 전략에 대해 논의하고 싶습니다.",
     "metadata": {
@@ -122,6 +146,20 @@
       "subject": "CI/CD 파이프라인 구축 완료 보고"
     },
     "timestamp": "2024-12-15T17:00:00Z"
+  },
+  {
+    "id": "gmail-003",
+    "content": "OAuth 인증 서버 보안 감사 결과를 공유드립니다. JWT 토큰 검증 로직에서 일부 개선이 필요합니다. 상세 내용은 첨부 문서를 참고해주세요.",
+    "metadata": {
+      "source": "gmail",
+      "messageId": "gmail-msg-003",
+      "threadId": "thread-003",
+      "from": "security@company.com",
+      "to": ["dev-team@company.com"],
+      "cc": ["tech-lead@company.com"],
+      "subject": "OAuth 인증 서버 보안 감사 결과"
+    },
+    "timestamp": "2024-12-17T10:00:00Z"
   },
   {
     "id": "webhook-001",
