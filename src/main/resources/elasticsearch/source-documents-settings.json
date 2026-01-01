@@ -1,9 +1,65 @@
 {
   "analysis": {
+    "tokenizer": {
+      "nori_tokenizer": {
+        "type": "nori_tokenizer",
+        "decompound_mode": "mixed"
+      }
+    },
+    "filter": {
+      "noun_filter": {
+        "type": "nori_part_of_speech",
+        "stoptags": [
+          "NNB",
+          "NP",
+          "NR",
+          "VV",
+          "VA",
+          "VX",
+          "VCP",
+          "VCN",
+          "MM",
+          "MAG",
+          "MAJ",
+          "IC",
+          "JKS",
+          "JKC",
+          "JKG",
+          "JKO",
+          "JKB",
+          "JKV",
+          "JKQ",
+          "JC",
+          "JX",
+          "EP",
+          "EF",
+          "EC",
+          "ETN",
+          "ETM",
+          "XPN",
+          "XSN",
+          "XSV",
+          "XSA",
+          "XR",
+          "SF",
+          "SE",
+          "SSO",
+          "SSC",
+          "SC",
+          "SY",
+          "SN",
+          "SP"
+        ]
+      }
+    },
     "analyzer": {
       "korean_analyzer": {
-        "type": "nori",
-        "decompound_mode": "mixed"
+        "type": "custom",
+        "tokenizer": "nori_tokenizer",
+        "filter": [
+          "lowercase",
+          "noun_filter"
+        ]
       }
     }
   }

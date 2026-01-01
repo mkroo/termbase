@@ -139,7 +139,7 @@ class ElasticsearchSourceDocumentAnalyzerTest : DescribeSpec() {
                     elasticsearchOperations.save(
                         SourceDocument(
                             id = "doc-001",
-                            content = "용어1 용어2 용어3 용어4 용어5",
+                            content = "프로젝트 개발 서비스 시스템 데이터 프로세스 모듈",
                             metadata =
                                 SlackMetadata(
                                     workspaceId = "T123456",
