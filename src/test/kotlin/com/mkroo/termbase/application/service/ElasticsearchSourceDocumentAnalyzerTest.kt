@@ -3,6 +3,8 @@ package com.mkroo.termbase.application.service
 import com.mkroo.termbase.TestcontainersConfiguration
 import com.mkroo.termbase.domain.model.document.SlackMetadata
 import com.mkroo.termbase.domain.model.document.SourceDocument
+import com.mkroo.termbase.domain.model.ignoredterm.IgnoredTerm
+import com.mkroo.termbase.domain.repository.IgnoredTermRepository
 import com.mkroo.termbase.domain.service.SourceDocumentAnalyzer
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.extensions.spring.SpringExtension
@@ -17,6 +19,7 @@ import org.springframework.context.annotation.Import
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations
 import org.springframework.test.context.ActiveProfiles
 import java.time.Instant
+import java.time.LocalDateTime
 
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
@@ -28,6 +31,9 @@ class ElasticsearchSourceDocumentAnalyzerTest : DescribeSpec() {
     @Autowired
     private lateinit var elasticsearchOperations: ElasticsearchOperations
 
+    @Autowired
+    private lateinit var ignoredTermRepository: IgnoredTermRepository
+
     init {
         extension(SpringExtension())
 
@@ -37,6 +43,8 @@ class ElasticsearchSourceDocumentAnalyzerTest : DescribeSpec() {
                 indexOps.delete()
             }
             indexOps.createWithMapping()
+
+            ignoredTermRepository.findAll().forEach { ignoredTermRepository.delete(it) }
         }
 
         afterEach {
@@ -44,6 +52,8 @@ class ElasticsearchSourceDocumentAnalyzerTest : DescribeSpec() {
             if (indexOps.exists()) {
                 indexOps.delete()
             }
+
+            ignoredTermRepository.findAll().forEach { ignoredTermRepository.delete(it) }
         }
 
         describe("ElasticsearchSourceDocumentAnalyzer") {
@@ -137,6 +147,116 @@ class ElasticsearchSourceDocumentAnalyzerTest : DescribeSpec() {
                     val result = sourceDocumentAnalyzer.getTopFrequentTerms(3)
 
                     result.shouldHaveSize(3)
+                }
+
+                context("무시된 단어 제외") {
+                    it("should exclude ignored terms from results") {
+                        ignoredTermRepository.save(
+                            IgnoredTerm(
+                                name = "api",
+                                reason = "너무 일반적인 용어",
+                                createdAt = LocalDateTime.now(),
+                            ),
+                        )
+
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-001",
+                                content = "API 개발을 시작합니다",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-001",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = Instant.now(),
+                            ),
+                        )
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-002",
+                                content = "API 문서를 작성합니다",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-002",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = Instant.now(),
+                            ),
+                        )
+
+                        elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                        val result = sourceDocumentAnalyzer.getTopFrequentTerms(10)
+
+                        result.none { it.term == "api" } shouldBe true
+                    }
+
+                    it("should exclude multiple ignored terms from results") {
+                        ignoredTermRepository.save(
+                            IgnoredTerm(
+                                name = "api",
+                                reason = "너무 일반적인 용어",
+                                createdAt = LocalDateTime.now(),
+                            ),
+                        )
+                        ignoredTermRepository.save(
+                            IgnoredTerm(
+                                name = "개발",
+                                reason = "너무 일반적인 용어",
+                                createdAt = LocalDateTime.now(),
+                            ),
+                        )
+
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-001",
+                                content = "API 개발을 시작합니다",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-001",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = Instant.now(),
+                            ),
+                        )
+
+                        elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                        val result = sourceDocumentAnalyzer.getTopFrequentTerms(10)
+
+                        result.none { it.term == "api" } shouldBe true
+                        result.none { it.term == "개발" } shouldBe true
+                    }
+
+                    it("should return all terms when no ignored terms exist") {
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-001",
+                                content = "API 개발을 시작합니다",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-001",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = Instant.now(),
+                            ),
+                        )
+
+                        elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                        val result = sourceDocumentAnalyzer.getTopFrequentTerms(10)
+
+                        result.shouldNotBeEmpty()
+                        result.any { it.term == "api" } shouldBe true
+                    }
                 }
             }
         }
