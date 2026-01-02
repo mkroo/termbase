@@ -67,16 +67,22 @@ class ReindexingService(
     @Transactional
     fun reindex(): ReindexingResult {
         val terms = termRepository.findAll()
-        val userDictionaryRules = terms.map { it.name }
+        // For terms with spaces, use space-removed version in user dictionary
+        val userDictionaryRules =
+            terms.map { it.name.replace(" ", "") }.distinct()
         val synonymRules = buildSynonymRules(terms)
         val newIndexName = generateNewIndexName()
 
         val status = getOrCreateStatus(newIndexName)
+
+        // Check if ALIAS_NAME exists as a real index (not managed by reindexing)
+        val aliasExistsAsRealIndex = checkIfAliasExistsAsRealIndex()
+
         val currentIndex =
-            if (status.currentIndexName != newIndexName && indexExists(status.currentIndexName)) {
-                status.currentIndexName
-            } else {
-                null
+            when {
+                aliasExistsAsRealIndex -> ALIAS_NAME
+                status.currentIndexName != newIndexName && indexExists(status.currentIndexName) -> status.currentIndexName
+                else -> null
             }
 
         createIndexWithUserDictionary(newIndexName, userDictionaryRules, synonymRules)
@@ -88,9 +94,14 @@ class ReindexingService(
                 0L
             }
 
-        switchAlias(currentIndex, newIndexName)
+        // Delete the real index if it exists before creating alias
+        if (aliasExistsAsRealIndex) {
+            deleteIndex(ALIAS_NAME)
+        }
 
-        if (currentIndex != null) {
+        switchAlias(if (aliasExistsAsRealIndex) null else currentIndex, newIndexName)
+
+        if (currentIndex != null && !aliasExistsAsRealIndex) {
             deleteIndex(currentIndex)
         }
 
@@ -110,8 +121,9 @@ class ReindexingService(
         terms
             .filter { it.synonyms.isNotEmpty() }
             .map { term ->
-                val synonymNames = term.synonyms.joinToString(", ") { it.name }
-                "$synonymNames => ${term.name.lowercase()}"
+                // Remove spaces from both synonyms and term name for Elasticsearch compatibility
+                val synonymNames = term.synonyms.joinToString(", ") { it.name.replace(" ", "") }
+                "$synonymNames => ${term.name.replace(" ", "").lowercase()}"
             }
 
     @Transactional
@@ -281,6 +293,21 @@ class ReindexingService(
             client.indices().updateAliases { it.actions(actions) }
         }
     }
+
+    private fun checkIfAliasExistsAsRealIndex(): Boolean =
+        elasticsearchTemplate.execute { client ->
+            // Check if ALIAS_NAME exists as an index
+            val exists = client.indices().exists { it.index(ALIAS_NAME) }.value()
+            if (!exists) return@execute false
+
+            // Check if it's a real index (not an alias pointing to another index)
+            // getAlias returns info about the index if ALIAS_NAME is a real index
+            val aliasResponse = client.indices().getAlias { it.index(ALIAS_NAME) }
+            val indexInfo = aliasResponse[ALIAS_NAME]
+
+            // If indexInfo exists, ALIAS_NAME is a real index
+            indexInfo != null
+        }
 
     private fun deleteIndex(indexName: String) {
         elasticsearchTemplate.execute { client ->

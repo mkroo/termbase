@@ -89,6 +89,73 @@ class ReindexingServiceTest : DescribeSpec() {
                     result.synonymRulesSize shouldBe 1
                 }
 
+                it("should handle terms with spaces by removing spaces") {
+                    termRepository.save(Term(name = "공유 주차장", definition = "여러 사람이 함께 사용하는 주차장"))
+                    termRepository.save(Term(name = "삼성전자", definition = "대한민국의 대표 기업"))
+
+                    val result = reindexingService.reindex()
+
+                    // "공유 주차장" -> "공유주차장", "삼성전자" -> 2 terms in user dictionary
+                    result.userDictionarySize shouldBe 2
+                    result.previousIndex.shouldBeNull()
+                    result.newIndex shouldStartWith "source_documents_v"
+                }
+
+                it("should handle synonyms with spaces") {
+                    val term = termRepository.save(Term(name = "공유 주차장", definition = "여러 사람이 함께 사용하는 주차장"))
+                    term.addSynonym("공유 파킹")
+                    term.addSynonym("셰어드 파킹")
+                    termRepository.save(term)
+
+                    val result = reindexingService.reindex()
+
+                    result.userDictionarySize shouldBe 1
+                    // synonym rules: "공유파킹, 셰어드파킹 => 공유주차장"
+                    result.synonymRulesSize shouldBe 1
+                }
+
+                it("should handle when source_documents index exists as real index (not alias)") {
+                    // Create source_documents as a real index (simulating ensureIndexExists behavior)
+                    elasticsearchTemplate.execute { client ->
+                        client.indices().create { builder ->
+                            builder.index("source_documents")
+                        }
+                    }
+
+                    // Reindex should succeed by reindexing from real index, then deleting it
+                    val result = reindexingService.reindex()
+
+                    result.newIndex shouldStartWith "source_documents_v"
+                    // previousIndex is the real index that was converted to alias
+                    result.previousIndex shouldBe "source_documents"
+                }
+
+                it("should preserve documents when reindexing from real index to alias system") {
+                    // Create source_documents as a real index with documents
+                    elasticsearchTemplate.execute { client ->
+                        client.indices().create { builder ->
+                            builder.index("source_documents")
+                        }
+                    }
+
+                    // Insert documents directly into the real index
+                    val documents =
+                        listOf(
+                            createSourceDocument("doc-001", "테스트 문서 1"),
+                            createSourceDocument("doc-002", "테스트 문서 2"),
+                            createSourceDocument("doc-003", "테스트 문서 3"),
+                        )
+                    sourceDocumentService.bulkInsert(documents)
+                    elasticsearchTemplate.indexOps(SourceDocument::class.java).refresh()
+
+                    // Reindex - should preserve all documents
+                    val result = reindexingService.reindex()
+
+                    result.documentCount shouldBe 3
+                    result.previousIndex shouldBe "source_documents"
+                    result.newIndex shouldStartWith "source_documents_v"
+                }
+
                 it("should reindex documents from old index to new index") {
                     reindexingService.reindex()
 
