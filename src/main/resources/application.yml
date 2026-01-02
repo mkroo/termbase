@@ -14,3 +14,7 @@ logging:
   level:
     org.hibernate.SQL: debug
     org.hibernate.orm.jdbc.bind: trace
+
+slack:
+  bot-token: ${SLACK_BOT_TOKEN:}
+  signing-secret: ${SLACK_SIGNING_SECRET:}
