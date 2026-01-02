@@ -39,6 +39,17 @@
         } else {
             document.documentElement.classList.remove('dark');
         }
+
+        // Theme toggle function
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+            }
+        }
     </script>
     <style>
         /* Notion-like scrollbar */
@@ -87,16 +98,5 @@
             </button>
         </div>
     </nav>
-    <script>
-        function toggleTheme() {
-            if (document.documentElement.classList.contains('dark')) {
-                document.documentElement.classList.remove('dark');
-                localStorage.theme = 'light';
-            } else {
-                document.documentElement.classList.add('dark');
-                localStorage.theme = 'dark';
-            }
-        }
-    </script>
 </body>
 </html>
