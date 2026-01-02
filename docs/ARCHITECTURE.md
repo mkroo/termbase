@@ -498,6 +498,189 @@ data class BulkInsertFailure(
 
 ---
 
+## Slack Integration
+
+### Overview
+
+Slack에서 대화를 수집하는 두 가지 방식을 제공합니다:
+
+```mermaid
+flowchart TB
+    subgraph Slack["Slack"]
+        Events[Event Subscriptions]
+        API[Conversations API]
+    end
+
+    subgraph App["Application"]
+        EventController[SlackEventController]
+        BatchController[SlackBatchController]
+        EventService[SlackEventService]
+        BatchService[SlackConversationsBatchService]
+        ApiClient[SlackApiClient]
+    end
+
+    subgraph Storage["Storage"]
+        ES[(Elasticsearch)]
+        MySQL[(MySQL)]
+    end
+
+    Events -->|Webhook| EventController
+    EventController --> EventService
+    EventService --> ES
+
+    BatchController --> BatchService
+    BatchService --> ApiClient
+    ApiClient --> API
+    BatchService --> ES
+    BatchService --> MySQL
+```
+
+### Event Subscriptions (실시간 수신)
+
+Slack에서 메시지 이벤트가 발생하면 웹훅으로 실시간 수신합니다.
+
+**엔드포인트:**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/slack/events` | Slack Event Subscriptions 웹훅 |
+
+**흐름:**
+
+```mermaid
+sequenceDiagram
+    participant Slack
+    participant Controller as SlackEventController
+    participant Verifier as SlackSignatureVerifier
+    participant Service as SlackEventService
+    participant ES as Elasticsearch
+
+    Slack->>Controller: POST /api/slack/events
+    Controller->>Verifier: verify(timestamp, body, signature)
+    alt Invalid signature or old timestamp
+        Verifier-->>Controller: false
+        Controller-->>Slack: 401 Unauthorized
+    else Valid
+        Verifier-->>Controller: true
+        alt URL Verification
+            Controller-->>Slack: {"challenge": "..."}
+        else Message Event
+            Controller->>Service: processMessageEvent(event, teamId)
+            Service->>ES: bulkInsert(documents)
+            Controller-->>Slack: 200 OK
+        end
+    end
+```
+
+**서명 검증:**
+
+- HMAC-SHA256 서명 검증 (Signing Secret 사용)
+- 5분 이내 요청만 허용 (Replay Attack 방지)
+
+**메시지 필터링:**
+
+- Bot 메시지 제외 (`bot_id` 존재)
+- 서브타입 메시지 제외 (`subtype` 존재)
+- 사용자가 없는 메시지 제외
+- 텍스트가 없는 메시지 제외
+
+### Conversations API Batch (배치 수집)
+
+과거 메시지를 일괄 수집하거나 증분 수집합니다.
+
+**엔드포인트:**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/slack/batch/collect` | 수동 수집 (기간 지정) |
+| POST | `/api/slack/batch/collect/{channelId}/incremental` | 증분 수집 |
+
+**수동 수집 요청:**
+
+```json
+POST /api/slack/batch/collect
+{
+    "workspaceId": "T123456",
+    "channelId": "C789012",
+    "oldest": "1704067200.000000",  // optional, Unix timestamp
+    "latest": "1704153600.000000"   // optional, Unix timestamp
+}
+```
+
+**증분 수집 요청:**
+
+```json
+POST /api/slack/batch/collect/C789012/incremental
+{
+    "workspaceId": "T123456"
+}
+```
+
+**응답:**
+
+```json
+{
+    "totalCount": 100,
+    "successCount": 98,
+    "failureCount": 2
+}
+```
+
+**증분 수집 흐름:**
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Controller as SlackBatchController
+    participant Service as SlackConversationsBatchService
+    participant ApiClient as SlackApiClient
+    participant MySQL
+    participant ES as Elasticsearch
+
+    Client->>Controller: POST /incremental
+    Controller->>Service: collectIncrementalMessages()
+    Service->>MySQL: findByChannelId(channelId)
+    MySQL-->>Service: checkpoint (or null)
+    Service->>ApiClient: fetchAllMessages(oldest=checkpoint.ts)
+    ApiClient->>ApiClient: pagination loop
+    ApiClient-->>Service: messages
+    Service->>ES: bulkInsert(documents)
+    Service->>MySQL: save(checkpoint)
+    Service-->>Controller: BulkInsertResult
+    Controller-->>Client: BatchCollectResponse
+```
+
+**체크포인트:**
+
+- `SlackCollectionCheckpoint` 엔티티로 마지막 수집 시점 관리
+- 증분 수집 시 `lastCollectedTs` 이후 메시지만 조회
+- 수집 완료 후 가장 최신 메시지의 타임스탬프로 업데이트
+
+### Configuration
+
+**application.yml:**
+
+```yaml
+slack:
+  bot-token: ${SLACK_BOT_TOKEN}      # xoxb-로 시작하는 Bot Token
+  signing-secret: ${SLACK_SIGNING_SECRET}  # App Credentials의 Signing Secret
+```
+
+**Slack App 권한 (Bot Token Scopes):**
+
+| Scope | Description |
+|-------|-------------|
+| `channels:history` | 공개 채널 메시지 읽기 |
+| `groups:history` | 비공개 채널 메시지 읽기 |
+
+**Event Subscriptions 설정:**
+
+1. Slack App > Event Subscriptions 활성화
+2. Request URL: `https://your-domain/api/slack/events`
+3. Subscribe to bot events: `message.channels`, `message.groups`
+
+---
+
 ## Elasticsearch Synchronization
 
 MySQL의 용어/동의어 데이터를 Elasticsearch의 user_dictionary와 synonym filter에 적용하는 흐름:
