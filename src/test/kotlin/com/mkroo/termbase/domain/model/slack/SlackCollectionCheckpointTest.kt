@@ -54,6 +54,23 @@ class SlackCollectionCheckpointTest :
                     checkpoint.lastCollectedTs shouldBe "1704153600.000000"
                     checkpoint.lastCollectedAt shouldBe newCollectedAt
                 }
+
+                it("직접 프로퍼티를 설정할 수 있다") {
+                    val initialCollectedAt = Instant.parse("2024-01-01T00:00:00Z")
+                    val checkpoint =
+                        SlackCollectionCheckpoint(
+                            channelId = "C123456",
+                            lastCollectedTs = "1704067200.000000",
+                            lastCollectedAt = initialCollectedAt,
+                        )
+
+                    val newCollectedAt = Instant.parse("2024-01-02T00:00:00Z")
+                    checkpoint.lastCollectedTs = "1704153600.000000"
+                    checkpoint.lastCollectedAt = newCollectedAt
+
+                    checkpoint.lastCollectedTs shouldBe "1704153600.000000"
+                    checkpoint.lastCollectedAt shouldBe newCollectedAt
+                }
             }
         }
     })

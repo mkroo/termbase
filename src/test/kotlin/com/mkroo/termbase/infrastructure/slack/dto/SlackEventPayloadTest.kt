@@ -69,6 +69,23 @@ class SlackEventPayloadTest :
         }
 
         describe("SlackMessageEvent") {
+            describe("프로퍼티 접근") {
+                it("모든 프로퍼티에 접근할 수 있다") {
+                    val event =
+                        SlackMessageEvent(
+                            channel = "C123456",
+                            user = "U789012",
+                            text = "테스트 메시지",
+                            ts = "1704067200.000000",
+                            subtype = "message_changed",
+                            botId = "B123456",
+                        )
+
+                    event.subtype shouldBe "message_changed"
+                    event.botId shouldBe "B123456"
+                }
+            }
+
             describe("isUserMessage") {
                 it("일반 사용자 메시지인 경우 true를 반환한다") {
                     val event =
