@@ -121,6 +121,94 @@ class SourceDocumentServiceTest : DescribeSpec() {
                     saved?.content shouldBe "수정된 내용"
                 }
             }
+
+            describe("getDocuments") {
+                it("should return empty page when no documents exist") {
+                    val result = sourceDocumentService.getDocuments()
+
+                    result.documents.shouldBeEmpty()
+                    result.totalElements shouldBe 0
+                    result.totalPages shouldBe 0
+                    result.currentPage shouldBe 0
+                    result.size shouldBe 20
+                    result.hasNext shouldBe false
+                    result.hasPrevious shouldBe false
+                }
+
+                it("should return documents sorted by timestamp descending") {
+                    val documents =
+                        listOf(
+                            createSourceDocumentWithTimestamp("doc-001", "첫 번째", Instant.parse("2024-01-01T00:00:00Z")),
+                            createSourceDocumentWithTimestamp("doc-002", "두 번째", Instant.parse("2024-01-02T00:00:00Z")),
+                            createSourceDocumentWithTimestamp("doc-003", "세 번째", Instant.parse("2024-01-03T00:00:00Z")),
+                        )
+                    sourceDocumentService.bulkInsert(documents)
+                    elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                    val result = sourceDocumentService.getDocuments()
+
+                    result.documents.size shouldBe 3
+                    result.documents[0].id shouldBe "doc-003"
+                    result.documents[1].id shouldBe "doc-002"
+                    result.documents[2].id shouldBe "doc-001"
+                    result.totalElements shouldBe 3
+                }
+
+                it("should return paginated results") {
+                    val documents =
+                        (1..25).map { i ->
+                            createSourceDocumentWithTimestamp(
+                                "doc-${i.toString().padStart(3, '0')}",
+                                "문서 $i",
+                                Instant.parse("2024-01-${i.toString().padStart(2, '0')}T00:00:00Z"),
+                            )
+                        }
+                    sourceDocumentService.bulkInsert(documents)
+                    elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                    val page0 = sourceDocumentService.getDocuments(page = 0, size = 10)
+                    page0.documents.size shouldBe 10
+                    page0.totalElements shouldBe 25
+                    page0.totalPages shouldBe 3
+                    page0.currentPage shouldBe 0
+                    page0.hasNext shouldBe true
+                    page0.hasPrevious shouldBe false
+
+                    val page1 = sourceDocumentService.getDocuments(page = 1, size = 10)
+                    page1.documents.size shouldBe 10
+                    page1.currentPage shouldBe 1
+                    page1.hasNext shouldBe true
+                    page1.hasPrevious shouldBe true
+
+                    val page2 = sourceDocumentService.getDocuments(page = 2, size = 10)
+                    page2.documents.size shouldBe 5
+                    page2.currentPage shouldBe 2
+                    page2.hasNext shouldBe false
+                    page2.hasPrevious shouldBe true
+                }
+
+                it("should coerce negative page to 0") {
+                    val documents = listOf(createSourceDocument("doc-001", "테스트"))
+                    sourceDocumentService.bulkInsert(documents)
+                    elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                    val result = sourceDocumentService.getDocuments(page = -5, size = 10)
+
+                    result.currentPage shouldBe 0
+                }
+
+                it("should coerce size to valid range") {
+                    val documents = listOf(createSourceDocument("doc-001", "테스트"))
+                    sourceDocumentService.bulkInsert(documents)
+                    elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                    val tooSmall = sourceDocumentService.getDocuments(page = 0, size = 0)
+                    tooSmall.size shouldBe 1
+
+                    val tooLarge = sourceDocumentService.getDocuments(page = 0, size = 500)
+                    tooLarge.size shouldBe 100
+                }
+            }
         }
     }
 
@@ -139,5 +227,23 @@ class SourceDocumentServiceTest : DescribeSpec() {
                     userId = "U456789",
                 ),
             timestamp = Instant.now(),
+        )
+
+    private fun createSourceDocumentWithTimestamp(
+        id: String,
+        content: String,
+        timestamp: Instant,
+    ): SourceDocument =
+        SourceDocument(
+            id = id,
+            content = content,
+            metadata =
+                SlackMetadata(
+                    workspaceId = "T123456",
+                    channelId = "C789012",
+                    messageId = "msg-$id",
+                    userId = "U456789",
+                ),
+            timestamp = timestamp,
         )
 }
