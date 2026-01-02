@@ -18,3 +18,7 @@ spring:
 logging:
   level:
     org.hibernate.SQL: debug
+
+slack:
+  bot-token: xoxb-test-bot-token
+  signing-secret: test-signing-secret
