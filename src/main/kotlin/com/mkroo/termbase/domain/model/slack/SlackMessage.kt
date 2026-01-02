@@ -29,7 +29,12 @@ data class SlackMessage(
     companion object {
         fun fromSlackTs(ts: String): Instant {
             val seconds = ts.substringBefore(".").toLong()
-            val micros = ts.substringAfter(".").padEnd(6, '0').take(6).toLong()
+            val micros =
+                ts
+                    .substringAfter(".")
+                    .padEnd(6, '0')
+                    .take(6)
+                    .toLong()
             return Instant.ofEpochSecond(seconds, micros * 1000)
         }
     }

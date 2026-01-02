@@ -30,8 +30,7 @@ class ElasticsearchSourceDocumentAnalyzer(
     private val termRepository: TermRepository,
 ) : SourceDocumentAnalyzer {
     override fun getTopFrequentTerms(size: Int): List<TermFrequency> {
-        val indexOps = elasticsearchOperations.indexOps(SourceDocument::class.java)
-        if (!indexOps.exists()) {
+        if (!hasDocuments()) {
             return emptyList()
         }
 
@@ -88,8 +87,7 @@ class ElasticsearchSourceDocumentAnalyzer(
     }
 
     override fun getTermFrequency(term: String): Long {
-        val indexOps = elasticsearchOperations.indexOps(SourceDocument::class.java)
-        if (!indexOps.exists()) {
+        if (!hasDocuments()) {
             return 0
         }
 
@@ -111,8 +109,7 @@ class ElasticsearchSourceDocumentAnalyzer(
         interval: TimeSeriesInterval,
         days: Int,
     ): List<TimeSeriesFrequency> {
-        val indexOps = elasticsearchOperations.indexOps(SourceDocument::class.java)
-        if (!indexOps.exists()) {
+        if (!hasDocuments()) {
             return emptyList()
         }
 
@@ -180,8 +177,7 @@ class ElasticsearchSourceDocumentAnalyzer(
         term: String,
         size: Int,
     ): List<HighlightedSourceDocument> {
-        val indexOps = elasticsearchOperations.indexOps(SourceDocument::class.java)
-        if (!indexOps.exists()) {
+        if (!hasDocuments()) {
             return emptyList()
         }
 
@@ -256,6 +252,26 @@ class ElasticsearchSourceDocumentAnalyzer(
                 }
             }
         }
+
+    private fun hasDocuments(): Boolean {
+        val indexOps = elasticsearchOperations.indexOps(SourceDocument::class.java)
+        if (!indexOps.exists()) {
+            return false
+        }
+
+        val countQuery =
+            NativeQuery
+                .builder()
+                .withMaxResults(0)
+                .build()
+
+        return try {
+            val searchHits = elasticsearchOperations.search(countQuery, SourceDocument::class.java)
+            searchHits.totalHits > 0
+        } catch (_: Exception) {
+            false
+        }
+    }
 
     companion object {
         const val MAX_DOCUMENT_SIZE = 100

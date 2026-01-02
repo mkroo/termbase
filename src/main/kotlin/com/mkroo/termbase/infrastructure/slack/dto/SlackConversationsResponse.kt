@@ -28,3 +28,31 @@ data class ResponseMetadata(
     @JsonProperty("next_cursor")
     val nextCursor: String? = null,
 )
+
+data class SlackAuthTestResponse(
+    val ok: Boolean,
+    val error: String? = null,
+    @JsonProperty("team_id")
+    val teamId: String? = null,
+    val team: String? = null,
+    @JsonProperty("user_id")
+    val userId: String? = null,
+    val user: String? = null,
+)
+
+data class SlackConversationsListResponse(
+    val ok: Boolean,
+    val error: String? = null,
+    val channels: List<SlackChannel>? = null,
+    @JsonProperty("response_metadata")
+    val responseMetadata: ResponseMetadata? = null,
+)
+
+data class SlackChannel(
+    val id: String,
+    val name: String,
+    @JsonProperty("is_private")
+    val isPrivate: Boolean = false,
+    @JsonProperty("is_member")
+    val isMember: Boolean = false,
+)

@@ -31,6 +31,23 @@ class SlackConversationsBatchService(
         return sourceDocumentService.bulkInsert(documents)
     }
 
+    fun collectMessagesWithToken(
+        botToken: String,
+        workspaceId: String,
+        channelId: String,
+        oldest: String? = null,
+        latest: String? = null,
+    ): BulkInsertResult {
+        val messages = slackApiClient.fetchAllMessages(channelId, workspaceId, oldest, latest, botToken)
+
+        if (messages.isEmpty()) {
+            return BulkInsertResult.empty()
+        }
+
+        val documents = messages.map { it.toSourceDocument() }
+        return sourceDocumentService.bulkInsert(documents)
+    }
+
     fun collectIncrementalMessages(
         workspaceId: String,
         channelId: String,
