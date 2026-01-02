@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{layout/default :: head('데모')}">
+    <title>데모</title>
+</head>
+<body class="bg-white dark:bg-notion-bg-dark min-h-screen">
+    <nav th:replace="~{layout/default :: nav}"></nav>
+
+    <main class="max-w-6xl mx-auto px-6 py-8">
+        <!-- Header -->
+        <h1 class="text-3xl font-bold text-notion-text dark:text-notion-text-dark mb-2">데모</h1>
+        <p class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark mb-8">
+            Slack 대화 수집 및 Elasticsearch 데이터 조회
+        </p>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left: Slack Import -->
+            <div class="border border-notion-border dark:border-notion-border-dark rounded-lg">
+                <div class="border-b border-notion-border dark:border-notion-border-dark px-4 py-3 bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark rounded-t-lg">
+                    <h2 class="text-sm font-semibold text-notion-text dark:text-notion-text-dark">Slack 대화 수집</h2>
+                </div>
+
+                <div class="p-4">
+                    <!-- Token Error Message -->
+                    <div id="tokenError" class="hidden mb-4 px-3 py-2 text-sm bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 rounded"></div>
+
+                    <!-- Success Message -->
+                    <div id="collectSuccess" class="hidden mb-4 px-3 py-2 text-sm bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded"></div>
+
+                    <!-- Bot Token -->
+                    <div class="mb-4">
+                        <label for="botToken" class="block text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider mb-2">
+                            Bot Token
+                        </label>
+                        <div class="flex gap-2">
+                            <input type="password" id="botToken"
+                                   class="flex-1 px-3 py-2 text-sm bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                                          border border-notion-border dark:border-notion-border-dark rounded
+                                          text-notion-text dark:text-notion-text-dark
+                                          placeholder-notion-text-secondary dark:placeholder-notion-text-secondary-dark
+                                          focus:outline-none focus:ring-1 focus:ring-notion-accent focus:border-notion-accent"
+                                   placeholder="xoxb-...">
+                            <button type="button" id="loadChannelsBtn"
+                                    class="px-3 py-2 text-sm bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                                           border border-notion-border dark:border-notion-border-dark rounded
+                                           text-notion-text dark:text-notion-text-dark
+                                           hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark transition
+                                           disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
+                                채널 불러오기
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Channel Section (hidden until loaded) -->
+                    <div id="channelSection" class="hidden space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider mb-2">
+                                워크스페이스
+                                <span id="workspaceName" class="ml-1 text-notion-text dark:text-notion-text-dark font-normal normal-case"></span>
+                                <span id="channelCount" class="ml-1 text-notion-text-secondary dark:text-notion-text-secondary-dark font-normal normal-case"></span>
+                            </label>
+                        </div>
+
+                        <input type="hidden" id="workspaceId">
+
+                        <div>
+                            <label for="channelSearch" class="block text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider mb-2">
+                                채널 검색
+                            </label>
+                            <input type="text" id="channelSearch"
+                                   class="w-full px-3 py-2 text-sm bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                                          border border-notion-border dark:border-notion-border-dark rounded
+                                          text-notion-text dark:text-notion-text-dark
+                                          placeholder-notion-text-secondary dark:placeholder-notion-text-secondary-dark
+                                          focus:outline-none focus:ring-1 focus:ring-notion-accent focus:border-notion-accent"
+                                   placeholder="채널 이름으로 검색...">
+                        </div>
+
+                        <div>
+                            <label for="channelId" class="block text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider mb-2">
+                                채널 선택
+                            </label>
+                            <select id="channelId" size="6"
+                                    class="w-full px-3 py-2 text-sm bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                                           border border-notion-border dark:border-notion-border-dark rounded
+                                           text-notion-text dark:text-notion-text-dark
+                                           focus:outline-none focus:ring-1 focus:ring-notion-accent focus:border-notion-accent">
+                            </select>
+                        </div>
+
+                        <!-- Date Range -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label for="oldestDate" class="block text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider mb-2">
+                                    시작일
+                                </label>
+                                <input type="datetime-local" id="oldestDate"
+                                       class="w-full px-3 py-2 text-sm bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                                              border border-notion-border dark:border-notion-border-dark rounded
+                                              text-notion-text dark:text-notion-text-dark
+                                              focus:outline-none focus:ring-1 focus:ring-notion-accent focus:border-notion-accent">
+                            </div>
+                            <div>
+                                <label for="latestDate" class="block text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider mb-2">
+                                    종료일
+                                </label>
+                                <input type="datetime-local" id="latestDate"
+                                       class="w-full px-3 py-2 text-sm bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                                              border border-notion-border dark:border-notion-border-dark rounded
+                                              text-notion-text dark:text-notion-text-dark
+                                              focus:outline-none focus:ring-1 focus:ring-notion-accent focus:border-notion-accent">
+                            </div>
+                        </div>
+
+                        <button type="button" id="collectBtn" disabled
+                                class="w-full px-4 py-2 text-sm bg-notion-accent text-white rounded hover:opacity-90 transition
+                                       disabled:opacity-50 disabled:cursor-not-allowed">
+                            수집 시작
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Source Documents -->
+            <div class="border border-notion-border dark:border-notion-border-dark rounded-lg">
+                <div class="border-b border-notion-border dark:border-notion-border-dark px-4 py-3 bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark rounded-t-lg flex items-center justify-between">
+                    <h2 class="text-sm font-semibold text-notion-text dark:text-notion-text-dark">적재된 대화</h2>
+                    <div class="flex items-center gap-2">
+                        <span id="docCount" class="text-xs text-notion-text-secondary dark:text-notion-text-secondary-dark">0개</span>
+                        <button type="button" id="refreshBtn"
+                                class="px-2 py-1 text-xs bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                                       border border-notion-border dark:border-notion-border-dark rounded
+                                       text-notion-text dark:text-notion-text-dark
+                                       hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark transition">
+                            새로고침
+                        </button>
+                    </div>
+                </div>
+
+                <div id="documentsContainer" class="p-4 max-h-[600px] overflow-y-auto">
+                    <div id="emptyState" class="text-center py-8 text-notion-text-secondary dark:text-notion-text-secondary-dark text-sm">
+                        적재된 대화가 없습니다.
+                    </div>
+                    <div id="documentsList" class="hidden space-y-3"></div>
+                </div>
+
+                <!-- Pagination -->
+                <div id="pagination" class="hidden border-t border-notion-border dark:border-notion-border-dark px-4 py-3 flex items-center justify-between">
+                    <span id="pageInfo" class="text-xs text-notion-text-secondary dark:text-notion-text-secondary-dark"></span>
+                    <div class="flex gap-2">
+                        <button type="button" id="prevBtn" disabled
+                                class="px-3 py-1 text-xs bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                                       border border-notion-border dark:border-notion-border-dark rounded
+                                       text-notion-text dark:text-notion-text-dark
+                                       hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark transition
+                                       disabled:opacity-50 disabled:cursor-not-allowed">
+                            이전
+                        </button>
+                        <button type="button" id="nextBtn" disabled
+                                class="px-3 py-1 text-xs bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                                       border border-notion-border dark:border-notion-border-dark rounded
+                                       text-notion-text dark:text-notion-text-dark
+                                       hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark transition
+                                       disabled:opacity-50 disabled:cursor-not-allowed">
+                            다음
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reindexing Section -->
+        <div class="mt-8 border border-notion-border dark:border-notion-border-dark rounded-lg">
+            <div class="border-b border-notion-border dark:border-notion-border-dark px-4 py-3 bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark rounded-t-lg flex items-center justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold text-notion-text dark:text-notion-text-dark">재인덱싱</h2>
+                    <p class="text-xs text-notion-text-secondary dark:text-notion-text-secondary-dark mt-0.5">
+                        용어 사전 변경 시 Elasticsearch 인덱스를 재구성합니다
+                    </p>
+                </div>
+                <div id="reindexStatus" class="flex items-center gap-2">
+                    <span id="reindexStatusBadge" class="hidden px-2 py-0.5 text-xs rounded-full"></span>
+                </div>
+            </div>
+
+            <div class="p-4">
+                <!-- Reindex Error Message -->
+                <div id="reindexError" class="hidden mb-4 px-3 py-2 text-sm bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 rounded"></div>
+
+                <!-- Reindex Success Message -->
+                <div id="reindexSuccess" class="hidden mb-4 px-3 py-2 text-sm bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded"></div>
+
+                <!-- Reindex Result -->
+                <div id="reindexResult" class="hidden mb-4 p-4 bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark rounded border border-notion-border dark:border-notion-border-dark">
+                    <h3 class="text-sm font-medium text-notion-text dark:text-notion-text-dark mb-3">재인덱싱 결과</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                            <span class="text-notion-text-secondary dark:text-notion-text-secondary-dark">이전 인덱스</span>
+                            <p id="resultPrevIndex" class="font-mono text-notion-text dark:text-notion-text-dark">-</p>
+                        </div>
+                        <div>
+                            <span class="text-notion-text-secondary dark:text-notion-text-secondary-dark">새 인덱스</span>
+                            <p id="resultNewIndex" class="font-mono text-notion-text dark:text-notion-text-dark">-</p>
+                        </div>
+                        <div>
+                            <span class="text-notion-text-secondary dark:text-notion-text-secondary-dark">문서 수</span>
+                            <p id="resultDocCount" class="font-mono text-notion-text dark:text-notion-text-dark">-</p>
+                        </div>
+                        <div>
+                            <span class="text-notion-text-secondary dark:text-notion-text-secondary-dark">사용자 사전 / 동의어</span>
+                            <p id="resultDictSize" class="font-mono text-notion-text dark:text-notion-text-dark">-</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button type="button" id="reindexBtn"
+                            class="px-4 py-2 text-sm bg-orange-500 text-white rounded hover:bg-orange-600 transition
+                                   disabled:opacity-50 disabled:cursor-not-allowed">
+                        재인덱싱 실행
+                    </button>
+                    <span class="text-xs text-notion-text-secondary dark:text-notion-text-secondary-dark">
+                        용어 추가/수정 후 실행하면 검색 품질이 향상됩니다
+                    </span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // State
+        let allChannels = [];
+        let currentPage = 0;
+        const pageSize = 10;
+
+        // Elements
+        const botTokenInput = document.getElementById('botToken');
+        const loadChannelsBtn = document.getElementById('loadChannelsBtn');
+        const channelSection = document.getElementById('channelSection');
+        const channelSelect = document.getElementById('channelId');
+        const channelSearch = document.getElementById('channelSearch');
+        const workspaceIdInput = document.getElementById('workspaceId');
+        const workspaceNameSpan = document.getElementById('workspaceName');
+        const channelCountSpan = document.getElementById('channelCount');
+        const tokenError = document.getElementById('tokenError');
+        const collectSuccess = document.getElementById('collectSuccess');
+        const collectBtn = document.getElementById('collectBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const docCount = document.getElementById('docCount');
+        const emptyState = document.getElementById('emptyState');
+        const documentsList = document.getElementById('documentsList');
+        const pagination = document.getElementById('pagination');
+        const pageInfo = document.getElementById('pageInfo');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+
+        // Load channels
+        loadChannelsBtn.addEventListener('click', async function() {
+            const botToken = botTokenInput.value.trim();
+            if (!botToken) {
+                showError('Bot Token을 입력하세요.');
+                return;
+            }
+
+            loadChannelsBtn.disabled = true;
+            loadChannelsBtn.textContent = '불러오는 중...';
+            hideError();
+            hideSuccess();
+
+            try {
+                const formData = new FormData();
+                formData.append('botToken', botToken);
+
+                const response = await fetch('/demo/slack/workspace-info', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!data.ok) {
+                    showError(data.error || '워크스페이스 정보를 가져올 수 없습니다.');
+                    return;
+                }
+
+                workspaceIdInput.value = data.workspaceId;
+                workspaceNameSpan.textContent = data.workspaceName;
+                allChannels = data.channels;
+                channelCountSpan.textContent = '(' + allChannels.length + '개 채널)';
+                renderChannels(allChannels);
+                channelSection.classList.remove('hidden');
+                channelSelect.addEventListener('change', function() {
+                    collectBtn.disabled = !this.value;
+                });
+            } catch (e) {
+                showError('오류가 발생했습니다: ' + e.message);
+            } finally {
+                loadChannelsBtn.disabled = false;
+                loadChannelsBtn.textContent = '채널 불러오기';
+            }
+        });
+
+        // Search channels
+        channelSearch.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            if (!query) {
+                renderChannels(allChannels);
+                return;
+            }
+            const filtered = allChannels.filter(ch => ch.name.toLowerCase().includes(query));
+            renderChannels(filtered);
+        });
+
+        function renderChannels(channels) {
+            channelSelect.innerHTML = '';
+            channels.forEach(function(channel) {
+                const option = document.createElement('option');
+                option.value = channel.id;
+                option.textContent = (channel.isPrivate ? '🔒 ' : '# ') + channel.name;
+                channelSelect.appendChild(option);
+            });
+            collectBtn.disabled = true;
+        }
+
+        // Collect messages
+        collectBtn.addEventListener('click', async function() {
+            const botToken = botTokenInput.value.trim();
+            const workspaceId = workspaceIdInput.value;
+            const channelId = channelSelect.value;
+
+            if (!channelId) {
+                showError('채널을 선택하세요.');
+                return;
+            }
+
+            collectBtn.disabled = true;
+            collectBtn.textContent = '수집 중...';
+            hideError();
+            hideSuccess();
+
+            try {
+                const formData = new FormData();
+                formData.append('botToken', botToken);
+                formData.append('workspaceId', workspaceId);
+                formData.append('channelId', channelId);
+
+                const oldestDate = document.getElementById('oldestDate').value;
+                const latestDate = document.getElementById('latestDate').value;
+
+                if (oldestDate) {
+                    const ts = new Date(oldestDate).getTime() / 1000;
+                    formData.append('oldest', ts.toFixed(6));
+                }
+                if (latestDate) {
+                    const ts = new Date(latestDate).getTime() / 1000;
+                    formData.append('latest', ts.toFixed(6));
+                }
+
+                const response = await fetch('/demo/slack/collect-ajax', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    showSuccess(`수집 완료: ${data.messageCount}개 메시지, ${data.successCount}개 저장 성공`);
+                    loadDocuments();
+                }
+            } catch (e) {
+                showError('오류가 발생했습니다: ' + e.message);
+            } finally {
+                collectBtn.disabled = false;
+                collectBtn.textContent = '수집 시작';
+            }
+        });
+
+        // Load documents
+        async function loadDocuments() {
+            try {
+                const response = await fetch(`/demo/source-documents/api?page=${currentPage}&size=${pageSize}`);
+                const data = await response.json();
+
+                docCount.textContent = data.totalElements + '개';
+
+                if (data.documents.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    documentsList.classList.add('hidden');
+                    pagination.classList.add('hidden');
+                } else {
+                    emptyState.classList.add('hidden');
+                    documentsList.classList.remove('hidden');
+                    pagination.classList.remove('hidden');
+
+                    documentsList.innerHTML = data.documents.map(doc => `
+                        <div class="border border-notion-border dark:border-notion-border-dark rounded p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded">
+                                    ${doc.metadata.source}
+                                </span>
+                                <time class="text-xs text-notion-text-secondary dark:text-notion-text-secondary-dark">
+                                    ${formatTimestamp(doc.timestamp)}
+                                </time>
+                            </div>
+                            <p class="text-sm text-notion-text dark:text-notion-text-dark whitespace-pre-wrap break-words">${escapeHtml(doc.content)}</p>
+                        </div>
+                    `).join('');
+
+                    pageInfo.textContent = `${data.currentPage + 1} / ${data.totalPages} 페이지`;
+                    prevBtn.disabled = !data.hasPrevious;
+                    nextBtn.disabled = !data.hasNext;
+                }
+            } catch (e) {
+                console.error('Failed to load documents:', e);
+            }
+        }
+
+        function formatTimestamp(ts) {
+            const date = new Date(ts);
+            return date.toLocaleString('ko-KR');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        refreshBtn.addEventListener('click', () => {
+            currentPage = 0;
+            loadDocuments();
+        });
+
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 0) {
+                currentPage--;
+                loadDocuments();
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            currentPage++;
+            loadDocuments();
+        });
+
+        function showError(message) {
+            tokenError.textContent = message;
+            tokenError.classList.remove('hidden');
+        }
+
+        function hideError() {
+            tokenError.classList.add('hidden');
+        }
+
+        function showSuccess(message) {
+            collectSuccess.textContent = message;
+            collectSuccess.classList.remove('hidden');
+        }
+
+        function hideSuccess() {
+            collectSuccess.classList.add('hidden');
+        }
+
+        // Initial load
+        loadDocuments();
+
+        // Reindexing
+        const reindexBtn = document.getElementById('reindexBtn');
+        const reindexError = document.getElementById('reindexError');
+        const reindexSuccess = document.getElementById('reindexSuccess');
+        const reindexResult = document.getElementById('reindexResult');
+        const reindexStatusBadge = document.getElementById('reindexStatusBadge');
+
+        async function checkReindexStatus() {
+            try {
+                const response = await fetch('/demo/reindex/status');
+                const data = await response.json();
+
+                if (data.reindexingRequired) {
+                    reindexStatusBadge.textContent = '재인덱싱 필요';
+                    reindexStatusBadge.className = 'px-2 py-0.5 text-xs rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400';
+                } else {
+                    reindexStatusBadge.textContent = '최신 상태';
+                    reindexStatusBadge.className = 'px-2 py-0.5 text-xs rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400';
+                }
+                reindexStatusBadge.classList.remove('hidden');
+            } catch (e) {
+                console.error('Failed to check reindex status:', e);
+            }
+        }
+
+        reindexBtn.addEventListener('click', async function() {
+            reindexBtn.disabled = true;
+            reindexBtn.textContent = '재인덱싱 중...';
+            reindexError.classList.add('hidden');
+            reindexSuccess.classList.add('hidden');
+            reindexResult.classList.add('hidden');
+
+            try {
+                const response = await fetch('/demo/reindex', {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    reindexError.textContent = data.error || '재인덱싱에 실패했습니다.';
+                    reindexError.classList.remove('hidden');
+                } else {
+                    reindexSuccess.textContent = '재인덱싱이 완료되었습니다.';
+                    reindexSuccess.classList.remove('hidden');
+
+                    document.getElementById('resultPrevIndex').textContent = data.previousIndex || '(없음)';
+                    document.getElementById('resultNewIndex').textContent = data.newIndex;
+                    document.getElementById('resultDocCount').textContent = data.documentCount + '개';
+                    document.getElementById('resultDictSize').textContent = data.userDictionarySize + '개 / ' + data.synonymRulesSize + '개';
+                    reindexResult.classList.remove('hidden');
+
+                    checkReindexStatus();
+                }
+            } catch (e) {
+                reindexError.textContent = '오류가 발생했습니다: ' + e.message;
+                reindexError.classList.remove('hidden');
+            } finally {
+                reindexBtn.disabled = false;
+                reindexBtn.textContent = '재인덱싱 실행';
+            }
+        });
+
+        // Check reindex status on load
+        checkReindexStatus();
+    </script>
+</body>
+</html>
