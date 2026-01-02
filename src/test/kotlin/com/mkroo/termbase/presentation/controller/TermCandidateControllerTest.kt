@@ -85,6 +85,87 @@ class TermCandidateControllerTest : DescribeSpec() {
                 }
             }
 
+            describe("POST /candidates/ignore") {
+                it("용어를 무시 처리하고 목록 페이지로 리다이렉트한다") {
+                    mockMvc
+                        .perform(
+                            post("/candidates/ignore")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "테스트")
+                                .param("reason", "일반적인 단어"),
+                        ).andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/candidates"))
+                        .andExpect(flash().attributeExists("success"))
+                }
+
+                it("검색어가 있을 때 무시 처리하면 검색어를 유지한 채 리다이렉트한다") {
+                    mockMvc
+                        .perform(
+                            post("/candidates/ignore")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "테스트")
+                                .param("reason", "일반적인 단어")
+                                .param("q", "테스트"),
+                        ).andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/candidates?q=테스트"))
+                }
+
+                it("이미 용어로 등록된 단어를 무시 처리하면 에러와 함께 리다이렉트한다") {
+                    glossaryService.addTerm("API", "Application Programming Interface")
+
+                    mockMvc
+                        .perform(
+                            post("/candidates/ignore")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "API")
+                                .param("reason", "테스트"),
+                        ).andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/candidates"))
+                        .andExpect(flash().attributeExists("error"))
+                }
+
+                it("이미 동의어로 등록된 단어를 무시 처리하면 에러와 함께 리다이렉트한다") {
+                    glossaryService.addTerm("API", "Application Programming Interface")
+                    synonymService.addSynonym("API", "에이피아이")
+
+                    mockMvc
+                        .perform(
+                            post("/candidates/ignore")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "에이피아이")
+                                .param("reason", "테스트"),
+                        ).andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/candidates"))
+                        .andExpect(flash().attributeExists("error"))
+                }
+
+                it("이미 무시 처리된 단어를 다시 무시 처리하면 에러와 함께 리다이렉트한다") {
+                    ignoredTermService.addIgnoredTerm("테스트", "기존 사유")
+
+                    mockMvc
+                        .perform(
+                            post("/candidates/ignore")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "테스트")
+                                .param("reason", "새로운 사유"),
+                        ).andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/candidates"))
+                        .andExpect(flash().attributeExists("error"))
+                }
+
+                it("무시 사유가 비어있으면 에러와 함께 리다이렉트한다") {
+                    mockMvc
+                        .perform(
+                            post("/candidates/ignore")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "테스트")
+                                .param("reason", ""),
+                        ).andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/candidates"))
+                        .andExpect(flash().attributeExists("error"))
+                }
+            }
+
             describe("POST /candidates") {
                 it("용어를 등록하고 목록 페이지로 리다이렉트한다") {
                     mockMvc

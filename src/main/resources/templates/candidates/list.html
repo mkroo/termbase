@@ -49,9 +49,10 @@
             <table class="w-full">
                 <thead>
                     <tr class="bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark border-b border-notion-border dark:border-notion-border-dark">
-                        <th class="px-4 py-2 text-left text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider" style="width: 25%;">용어</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider" style="width: 20%;">용어</th>
                         <th class="px-4 py-2 text-left text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider" style="width: 10%;">빈도</th>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider" colspan="2">정의 입력 / 작업</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider">정의 입력</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider" style="width: 25%;">무시 처리</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-notion-border dark:divide-notion-border-dark">
@@ -63,7 +64,7 @@
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-notion-accent/10 text-notion-accent"
                                   th:text="${candidate.count}"></span>
                         </td>
-                        <td class="px-4 py-3" colspan="2">
+                        <td class="px-4 py-3">
                             <form th:action="@{/candidates}" method="post" class="flex gap-2 items-center">
                                 <input type="hidden" name="name" th:value="${candidate.term}">
                                 <input type="hidden" name="q" th:value="${query}">
@@ -76,6 +77,22 @@
                                 <button type="submit"
                                         class="text-sm text-notion-accent hover:text-notion-accent-hover transition whitespace-nowrap">
                                     등록
+                                </button>
+                            </form>
+                        </td>
+                        <td class="px-4 py-3">
+                            <form th:action="@{/candidates/ignore}" method="post" class="flex gap-2 items-center">
+                                <input type="hidden" name="name" th:value="${candidate.term}">
+                                <input type="hidden" name="q" th:value="${query}">
+                                <input type="text" name="reason" required placeholder="무시 사유..."
+                                       class="w-32 px-3 py-1.5 text-sm bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                                              border border-notion-border dark:border-notion-border-dark rounded
+                                              text-notion-text dark:text-notion-text-dark
+                                              placeholder-notion-text-secondary dark:placeholder-notion-text-secondary-dark
+                                              focus:outline-none focus:ring-1 focus:ring-red-400 focus:border-red-400">
+                                <button type="submit"
+                                        class="text-sm text-red-500 hover:text-red-600 transition whitespace-nowrap">
+                                    무시
                                 </button>
                             </form>
                         </td>
