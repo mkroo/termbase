@@ -20,5 +20,5 @@ logging:
     org.hibernate.SQL: debug
 
 slack:
-  bot-token: xoxb-test-bot-token
-  signing-secret: test-signing-secret
+  bot-token: ${SLACK_BOT_TOKEN:xoxb-test-bot-token}
+  signing-secret: ${SLACK_SIGNING_SECRET:test-signing-secret}
