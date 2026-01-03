@@ -1010,6 +1010,109 @@ class ElasticsearchSourceDocumentAnalyzerTest : DescribeSpec() {
                         result.shouldHaveSize(1)
                     }
                 }
+
+                context("합성어 검색 (US-11)") {
+                    it("합성어로 검색하면 해당 합성어를 포함하는 문서만 반환한다") {
+                        val now = Instant.now()
+                        // "공유 주차장"을 포함하는 문서
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-001",
+                                content = "공유 주차장에서 만나요",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-001",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = now,
+                            ),
+                        )
+                        // "공유"만 포함하는 문서 (검색에서 제외되어야 함)
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-002",
+                                content = "공유 자전거 대여",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-002",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = now.minusSeconds(60),
+                            ),
+                        )
+                        // "주차장"만 포함하는 문서 (검색에서 제외되어야 함)
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-003",
+                                content = "주차장 위치 알려주세요",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-003",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = now.minusSeconds(120),
+                            ),
+                        )
+
+                        elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                        // When: "공유 주차장"으로 검색
+                        val result = sourceDocumentAnalyzer.searchDocumentsByTerm("공유 주차장", 10)
+
+                        // Then: "공유 주차장"을 포함하는 문서만 반환
+                        result.shouldHaveSize(1)
+                        result.first().id shouldBe "doc-001"
+                    }
+
+                    it("순서가 다른 단어 조합은 검색되지 않는다") {
+                        val now = Instant.now()
+                        // "공유 주차장"을 포함하는 문서
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-001",
+                                content = "공유 주차장에서 만나요",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-001",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = now,
+                            ),
+                        )
+                        // 순서가 반대인 문서 (검색에서 제외되어야 함)
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-002",
+                                content = "주차장 공유 서비스",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-002",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = now.minusSeconds(60),
+                            ),
+                        )
+
+                        elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                        // When: "공유 주차장"으로 검색
+                        val result = sourceDocumentAnalyzer.searchDocumentsByTerm("공유 주차장", 10)
+
+                        // Then: "공유 주차장" 순서로 포함하는 문서만 반환
+                        result.shouldHaveSize(1)
+                        result.first().id shouldBe "doc-001"
+                    }
+                }
             }
         }
     }

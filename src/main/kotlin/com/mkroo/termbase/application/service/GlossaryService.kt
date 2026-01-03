@@ -40,6 +40,13 @@ class GlossaryService(
         }
 
         val term = Term(name = name, definition = definition)
+
+        // 공백 합성어 처리: 공백이 포함된 경우 공백 제거 버전을 동의어로 자동 추가
+        val compactName = name.replace(" ", "")
+        if (compactName != name && !termRepository.existsByName(compactName) && !termRepository.existsBySynonymName(compactName)) {
+            term.addSynonym(compactName)
+        }
+
         val savedTerm = termRepository.save(term)
         reindexingService.markReindexingRequired()
         return TermAddResult.Success(savedTerm)

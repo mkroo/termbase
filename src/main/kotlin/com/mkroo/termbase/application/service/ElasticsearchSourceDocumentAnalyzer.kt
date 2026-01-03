@@ -232,7 +232,7 @@ class ElasticsearchSourceDocumentAnalyzer(
     private fun buildSearchQuery(searchTerms: List<String>): Query =
         if (searchTerms.size == 1) {
             Query.of { q ->
-                q.match { m ->
+                q.matchPhrase { m ->
                     m.field("content").query(searchTerms.first())
                 }
             }
@@ -243,7 +243,7 @@ class ElasticsearchSourceDocumentAnalyzer(
                         .should(
                             searchTerms.map { searchTerm ->
                                 Query.of { sq ->
-                                    sq.match { m ->
+                                    sq.matchPhrase { m ->
                                         m.field("content").query(searchTerm)
                                     }
                                 }
