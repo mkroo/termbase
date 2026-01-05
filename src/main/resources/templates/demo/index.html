@@ -531,6 +531,28 @@
 
         // Check reindex status on load
         checkReindexStatus();
+
+        // Set default date range (3 months ago ~ now)
+        function setDefaultDateRange() {
+            const now = new Date();
+            const threeMonthsAgo = new Date();
+            threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+            // Format for datetime-local input (YYYY-MM-DDTHH:MM)
+            const formatDateTime = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                return `${year}-${month}-${day}T${hours}:${minutes}`;
+            };
+
+            document.getElementById('oldestDate').value = formatDateTime(threeMonthsAgo);
+            document.getElementById('latestDate').value = formatDateTime(now);
+        }
+
+        setDefaultDateRange();
     </script>
 </body>
 </html>
