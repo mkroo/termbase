@@ -86,22 +86,26 @@ class GlossaryServiceTest : DescribeSpec() {
 
                 context("합성어 처리 (US-11)") {
                     it("공백이 포함된 합성어를 등록하면 공백 제거 버전이 동의어로 자동 추가된다") {
-                        val result = glossaryService.addTerm(
-                            name = "공유 주차장",
-                            definition = "여러 사람이 함께 사용하는 주차장",
-                        )
+                        val result =
+                            glossaryService.addTerm(
+                                name = "공유 주차장",
+                                definition = "여러 사람이 함께 사용하는 주차장",
+                            )
 
                         result.shouldBeInstanceOf<TermAddResult.Success>()
                         result.term.name shouldBe "공유 주차장"
                         result.term.synonyms.size shouldBe 1
-                        result.term.synonyms.first().name shouldBe "공유주차장"
+                        result.term.synonyms
+                            .first()
+                            .name shouldBe "공유주차장"
                     }
 
                     it("공백이 없는 용어를 등록하면 동의어가 자동 추가되지 않는다") {
-                        val result = glossaryService.addTerm(
-                            name = "데이터베이스",
-                            definition = "데이터를 저장하는 시스템",
-                        )
+                        val result =
+                            glossaryService.addTerm(
+                                name = "데이터베이스",
+                                definition = "데이터를 저장하는 시스템",
+                            )
 
                         result.shouldBeInstanceOf<TermAddResult.Success>()
                         result.term.synonyms.size shouldBe 0
@@ -112,10 +116,11 @@ class GlossaryServiceTest : DescribeSpec() {
                         glossaryService.addTerm(name = "공유주차장", definition = "기존 정의")
 
                         // "공유 주차장"을 등록 시도
-                        val result = glossaryService.addTerm(
-                            name = "공유 주차장",
-                            definition = "여러 사람이 함께 사용하는 주차장",
-                        )
+                        val result =
+                            glossaryService.addTerm(
+                                name = "공유 주차장",
+                                definition = "여러 사람이 함께 사용하는 주차장",
+                            )
 
                         result.shouldBeInstanceOf<TermAddResult.Success>()
                         result.term.synonyms.size shouldBe 0
@@ -127,24 +132,28 @@ class GlossaryServiceTest : DescribeSpec() {
                         synonymService.addSynonym(termName = "파킹시스템", synonymName = "공유주차장")
 
                         // "공유 주차장"을 등록 시도
-                        val result = glossaryService.addTerm(
-                            name = "공유 주차장",
-                            definition = "여러 사람이 함께 사용하는 주차장",
-                        )
+                        val result =
+                            glossaryService.addTerm(
+                                name = "공유 주차장",
+                                definition = "여러 사람이 함께 사용하는 주차장",
+                            )
 
                         result.shouldBeInstanceOf<TermAddResult.Success>()
                         result.term.synonyms.size shouldBe 0
                     }
 
                     it("여러 공백이 포함된 합성어도 올바르게 처리된다") {
-                        val result = glossaryService.addTerm(
-                            name = "인공 지능 시스템",
-                            definition = "인공지능을 활용한 시스템",
-                        )
+                        val result =
+                            glossaryService.addTerm(
+                                name = "인공 지능 시스템",
+                                definition = "인공지능을 활용한 시스템",
+                            )
 
                         result.shouldBeInstanceOf<TermAddResult.Success>()
                         result.term.synonyms.size shouldBe 1
-                        result.term.synonyms.first().name shouldBe "인공지능시스템"
+                        result.term.synonyms
+                            .first()
+                            .name shouldBe "인공지능시스템"
                     }
                 }
             }

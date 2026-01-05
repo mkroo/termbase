@@ -98,6 +98,7 @@ class DemoControllerTest : DescribeSpec() {
                             documentCount = 100,
                             userDictionarySize = 10,
                             synonymRulesSize = 5,
+                            compoundWordMappingsSize = 3,
                         )
 
                     mockMvc
@@ -123,6 +124,7 @@ class DemoControllerTest : DescribeSpec() {
                             documentCount = 0,
                             userDictionarySize = 0,
                             synonymRulesSize = 0,
+                            compoundWordMappingsSize = 0,
                         )
 
                     mockMvc

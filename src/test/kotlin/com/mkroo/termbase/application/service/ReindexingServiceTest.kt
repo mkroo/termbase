@@ -97,6 +97,8 @@ class ReindexingServiceTest : DescribeSpec() {
 
                     // "공유 주차장" -> "공유주차장", "삼성전자" -> 2 terms in user dictionary
                     result.userDictionarySize shouldBe 2
+                    // "공유 주차장 => 공유주차장" char_filter 매핑
+                    result.compoundWordMappingsSize shouldBe 1
                     result.previousIndex.shouldBeNull()
                     result.newIndex shouldStartWith "source_documents_v"
                 }
@@ -110,7 +112,57 @@ class ReindexingServiceTest : DescribeSpec() {
                     val result = reindexingService.reindex()
 
                     result.userDictionarySize shouldBe 1
-                    // synonym rules: "공유파킹, 셰어드파킹 => 공유주차장"
+                    // synonym rule: "공유파킹, 셰어드파킹 => 공유주차장" (동의어 → 대표어)
+                    result.synonymRulesSize shouldBe 1
+                    // char_filter mappings:
+                    // 1. "공유 주차장 => 공유주차장" (용어 합성어)
+                    // 2. "공유 파킹 => 공유파킹" (동의어 합성어)
+                    // 3. "셰어드 파킹 => 셰어드파킹" (동의어 합성어)
+                    result.compoundWordMappingsSize shouldBe 3
+                }
+
+                it("should generate char_filter mapping for term with spaces (compound word)") {
+                    // Given: 띄어쓰기가 포함된 용어
+                    termRepository.save(Term(name = "삼성 전자", definition = "대한민국의 대표 기업"))
+
+                    // When: 재인덱싱
+                    val result = reindexingService.reindex()
+
+                    // Then: "삼성 전자 => 삼성전자" char_filter 매핑이 생성됨
+                    result.compoundWordMappingsSize shouldBe 1
+                    result.synonymRulesSize shouldBe 0
+                    result.userDictionarySize shouldBe 1
+                }
+
+                it("should generate char_filter mappings for multiple terms with spaces") {
+                    // Given: 띄어쓰기가 포함된 여러 용어
+                    termRepository.save(Term(name = "삼성 전자", definition = "대한민국의 대표 기업"))
+                    termRepository.save(Term(name = "현대 자동차", definition = "자동차 제조사"))
+                    termRepository.save(Term(name = "인공지능", definition = "AI")) // 띄어쓰기 없는 용어
+
+                    // When: 재인덱싱
+                    val result = reindexingService.reindex()
+
+                    // Then: 띄어쓰기 있는 용어만 char_filter 매핑 생성
+                    // "삼성 전자 => 삼성전자", "현대 자동차 => 현대자동차"
+                    result.compoundWordMappingsSize shouldBe 2
+                    result.synonymRulesSize shouldBe 0
+                    result.userDictionarySize shouldBe 3
+                }
+
+                it("should generate both compound char_filter and synonym rules") {
+                    // Given: 띄어쓰기가 포함된 용어와 동의어
+                    val term = termRepository.save(Term(name = "삼성 전자", definition = "대한민국의 대표 기업"))
+                    term.addSynonym("삼전")
+                    termRepository.save(term)
+
+                    // When: 재인덱싱
+                    val result = reindexingService.reindex()
+
+                    // Then: 두 가지 규칙 모두 생성
+                    // char_filter: "삼성 전자 => 삼성전자" (띄어쓰기 합성어)
+                    // synonym: "삼전 => 삼성전자" (동의어)
+                    result.compoundWordMappingsSize shouldBe 1
                     result.synonymRulesSize shouldBe 1
                 }
 

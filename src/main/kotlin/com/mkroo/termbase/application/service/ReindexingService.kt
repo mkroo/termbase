@@ -71,6 +71,7 @@ class ReindexingService(
         val userDictionaryRules =
             terms.map { it.name.replace(" ", "") }.distinct()
         val synonymRules = buildSynonymRules(terms)
+        val compoundWordMappings = buildCompoundWordMappings(terms)
         val newIndexName = generateNewIndexName()
 
         val status = getOrCreateStatus(newIndexName)
@@ -85,7 +86,7 @@ class ReindexingService(
                 else -> null
             }
 
-        createIndexWithUserDictionary(newIndexName, userDictionaryRules, synonymRules)
+        createIndexWithUserDictionary(newIndexName, userDictionaryRules, synonymRules, compoundWordMappings)
 
         val reindexedCount =
             if (currentIndex != null) {
@@ -114,17 +115,56 @@ class ReindexingService(
             documentCount = reindexedCount,
             userDictionarySize = userDictionaryRules.size,
             synonymRulesSize = synonymRules.size,
+            compoundWordMappingsSize = compoundWordMappings.size,
         )
     }
 
-    private fun buildSynonymRules(terms: List<Term>): List<String> =
-        terms
-            .filter { it.synonyms.isNotEmpty() }
-            .map { term ->
-                // Remove spaces from both synonyms and term name for Elasticsearch compatibility
-                val synonymNames = term.synonyms.joinToString(", ") { it.name.replace(" ", "") }
-                "$synonymNames => ${term.name.replace(" ", "").lowercase()}"
+    /**
+     * 동의어 규칙 생성 (단일 토큰만 지원)
+     * 공백이 포함된 용어는 char_filter로 처리하므로 여기서는 제외
+     */
+    private fun buildSynonymRules(terms: List<Term>): List<String> {
+        val rules = mutableListOf<String>()
+
+        for (term in terms) {
+            val termNameWithoutSpaces = term.name.replace(" ", "").lowercase()
+
+            // 동의어 규칙: 동의어 -> 대표어 (공백 제거된 버전으로)
+            if (term.synonyms.isNotEmpty()) {
+                val synonymNames =
+                    term.synonyms.map { s ->
+                        s.name.replace(" ", "").lowercase()
+                    }
+                rules.add("${synonymNames.joinToString(", ")} => $termNameWithoutSpaces")
             }
+        }
+
+        return rules.distinct()
+    }
+
+    /**
+     * 공백이 포함된 합성어 매핑 생성 (char_filter용)
+     * 예: "삼성 전자" -> "삼성전자", "공유 주차장" -> "공유주차장"
+     */
+    private fun buildCompoundWordMappings(terms: List<Term>): List<Pair<String, String>> {
+        val mappings = mutableListOf<Pair<String, String>>()
+
+        for (term in terms) {
+            // 용어 이름에 공백이 포함된 경우
+            if (term.name.contains(" ")) {
+                mappings.add(term.name to term.name.replace(" ", ""))
+            }
+
+            // 동의어 이름에 공백이 포함된 경우
+            for (synonym in term.synonyms) {
+                if (synonym.name.contains(" ")) {
+                    mappings.add(synonym.name to synonym.name.replace(" ", ""))
+                }
+            }
+        }
+
+        return mappings.distinctBy { it.first }
+    }
 
     @Transactional
     fun markReindexingRequired() {
@@ -165,6 +205,7 @@ class ReindexingService(
         indexName: String,
         userDictionaryRules: List<String>,
         synonymRules: List<String>,
+        compoundWordMappings: List<Pair<String, String>>,
     ) {
         elasticsearchTemplate.execute { client ->
             val userDictRulesJson =
@@ -181,13 +222,34 @@ class ReindexingService(
                     ""
                 }
 
+            // char_filter용 매핑 생성: "삼성 전자" => "삼성전자"
+            val compoundWordMappingsJson =
+                if (compoundWordMappings.isNotEmpty()) {
+                    compoundWordMappings.joinToString(",") { (from, to) -> "\"$from => $to\"" }
+                } else {
+                    ""
+                }
+
             val stoptagsJson = STOPTAGS.joinToString(",") { "\"$it\"" }
+
+            val hasCharFilter = compoundWordMappingsJson.isNotEmpty()
+            val hasSynonymFilter = synonymRulesJson.isNotEmpty()
 
             val settingsJson =
                 """
                 {
                   "settings": {
-                    "analysis": {
+                    "analysis": {${if (hasCharFilter) {
+                    """
+                      "char_filter": {
+                        "compound_word_filter": {
+                          "type": "mapping",
+                          "mappings": [$compoundWordMappingsJson]
+                        }
+                      },"""
+                } else {
+                    ""
+                }}
                       "tokenizer": {
                         "nori_user_dict_tokenizer": {
                           "type": "nori_tokenizer",
@@ -203,7 +265,7 @@ class ReindexingService(
                         "noun_filter": {
                           "type": "nori_part_of_speech",
                           "stoptags": [$stoptagsJson]
-                        }${if (synonymRulesJson.isNotEmpty()) {
+                        }${if (hasSynonymFilter) {
                     """,
                         "synonym_filter": {
                           "type": "synonym",
@@ -215,9 +277,14 @@ class ReindexingService(
                       },
                       "analyzer": {
                         "korean_analyzer": {
-                          "type": "custom",
+                          "type": "custom",${if (hasCharFilter) {
+                    """
+                          "char_filter": ["compound_word_filter"],"""
+                } else {
+                    ""
+                }}
                           "tokenizer": "nori_user_dict_tokenizer",
-                          "filter": ["lowercase", "noun_filter"${if (synonymRulesJson.isNotEmpty()) {
+                          "filter": ["lowercase", "noun_filter"${if (hasSynonymFilter) {
                     """, "synonym_filter""""
                 } else {
                     ""
@@ -322,4 +389,5 @@ data class ReindexingResult(
     val documentCount: Long,
     val userDictionarySize: Int,
     val synonymRulesSize: Int,
+    val compoundWordMappingsSize: Int,
 )
