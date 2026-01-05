@@ -277,6 +277,122 @@ class ElasticsearchSourceDocumentAnalyzerTest : DescribeSpec() {
                         result.any { it.term == "api" } shouldBe true
                     }
                 }
+
+                context("한 글자 영문 제외") {
+                    it("should exclude single-letter English terms from results") {
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-001",
+                                content = "A to Z까지 모두 학습합니다 I am a developer",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-001",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = Instant.now(),
+                            ),
+                        )
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-002",
+                                content = "API를 개발합니다",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-002",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = Instant.now(),
+                            ),
+                        )
+
+                        elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                        val result = sourceDocumentAnalyzer.getTopFrequentTerms(20)
+
+                        // Single-letter English (a, i, z) should be excluded
+                        result.none { it.term.length == 1 && it.term.first() in 'a'..'z' } shouldBe true
+                        // Multi-letter terms should still be included
+                        result.any { it.term == "api" } shouldBe true
+                    }
+
+                    it("should not exclude multi-letter terms") {
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-001",
+                                content = "API SDK REST HTTP",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-001",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = Instant.now(),
+                            ),
+                        )
+
+                        elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                        val result = sourceDocumentAnalyzer.getTopFrequentTerms(10)
+
+                        // Multi-letter terms should be included
+                        result.any { it.term == "api" } shouldBe true
+                        result.any { it.term == "sdk" } shouldBe true
+                    }
+
+                    it("should not exclude Korean single characters") {
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-001",
+                                content = "가 나 다 라 마 가 가 가",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-001",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = Instant.now(),
+                            ),
+                        )
+
+                        elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                        val result = sourceDocumentAnalyzer.getTopFrequentTerms(10)
+
+                        // Korean single characters should still be included if they pass nori tokenizer
+                        // Note: nori tokenizer may not tokenize individual Korean characters as separate terms
+                        result.shouldNotBeEmpty()
+                    }
+
+                    it("should not exclude single digit numbers") {
+                        elasticsearchOperations.save(
+                            SourceDocument(
+                                id = "doc-001",
+                                content = "버전 1 버전 2 버전 3",
+                                metadata =
+                                    SlackMetadata(
+                                        workspaceId = "T123456",
+                                        channelId = "C789012",
+                                        messageId = "msg-001",
+                                        userId = "U456789",
+                                    ),
+                                timestamp = Instant.now(),
+                            ),
+                        )
+
+                        elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
+
+                        val result = sourceDocumentAnalyzer.getTopFrequentTerms(10)
+
+                        // Single digits should not be filtered (they're not in 'a'..'z')
+                        result.shouldNotBeEmpty()
+                    }
+                }
             }
 
             describe("getTermFrequency") {

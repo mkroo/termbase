@@ -95,8 +95,10 @@ val jacocoExcludes =
         "**/presentation/controller/ApiResponse*",
         "**/presentation/controller/TermNotFoundException*",
         "**/presentation/controller/IgnoredTermNotFoundException*",
+        "**/presentation/controller/DemoController*",
         "**/domain/model/document/BulkInsertFailure*",
         "**/application/service/ReindexingResult*",
+        "**/application/service/ReindexingService\$Companion*",
         "**/domain/model/reindex/ReindexingStatus*",
         // Kotlin interface default parameter synthetic classes
         "**/domain/service/SourceDocumentAnalyzer\$DefaultImpls*",

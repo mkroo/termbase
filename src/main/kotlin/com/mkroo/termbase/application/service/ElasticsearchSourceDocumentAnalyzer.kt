@@ -36,6 +36,9 @@ class ElasticsearchSourceDocumentAnalyzer(
 
         val excludedTerms = collectExcludedTerms()
 
+        // Request more terms to account for filtering single-letter English terms
+        val requestSize = size * 2
+
         val query =
             NativeQuery
                 .builder()
@@ -43,7 +46,7 @@ class ElasticsearchSourceDocumentAnalyzer(
                     "top_terms",
                     Aggregation.of { agg ->
                         agg.terms { terms ->
-                            val termsBuilder = terms.field("content").size(size)
+                            val termsBuilder = terms.field("content").size(requestSize)
                             if (excludedTerms.isNotEmpty()) {
                                 termsBuilder.exclude(
                                     TermsExclude.of { ex -> ex.terms(excludedTerms.toList()) },
@@ -69,13 +72,17 @@ class ElasticsearchSourceDocumentAnalyzer(
                 .buckets()
                 .array()
 
-        return buckets.map { bucket ->
-            TermFrequency(
-                term = bucket.key().stringValue(),
-                count = bucket.docCount(),
-            )
-        }
+        return buckets
+            .map { bucket ->
+                TermFrequency(
+                    term = bucket.key().stringValue(),
+                    count = bucket.docCount(),
+                )
+            }.filterNot { isSingleLetterEnglish(it.term) }
+            .take(size)
     }
+
+    private fun isSingleLetterEnglish(term: String): Boolean = term.length == 1 && term.first() in 'a'..'z'
 
     private fun collectExcludedTerms(): Set<String> {
         val ignoredTermNames = ignoredTermRepository.findAll().map { it.name.lowercase() }

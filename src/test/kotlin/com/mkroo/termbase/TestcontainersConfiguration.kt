@@ -31,7 +31,11 @@ class TestcontainersConfiguration {
         private fun imageExists(): Boolean =
             try {
                 val process = ProcessBuilder("docker", "images", "-q", IMAGE_NAME).start()
-                val result = process.inputStream.bufferedReader().readText().trim()
+                val result =
+                    process.inputStream
+                        .bufferedReader()
+                        .readText()
+                        .trim()
                 process.waitFor()
                 result.isNotEmpty()
             } catch (e: Exception) {

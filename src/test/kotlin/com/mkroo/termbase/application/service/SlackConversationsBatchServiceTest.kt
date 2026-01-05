@@ -95,6 +95,77 @@ class SlackConversationsBatchServiceTest :
                 }
             }
 
+            describe("collectMessagesWithToken") {
+                it("토큰을 사용하여 메시지를 수집한다") {
+                    val messages =
+                        listOf(
+                            SlackMessage(
+                                workspaceId = "T000001",
+                                channelId = "C123456",
+                                messageTs = "1704067200.123456",
+                                userId = "U123456",
+                                text = "테스트 메시지",
+                                timestamp = Instant.parse("2024-01-01T00:00:00Z"),
+                            ),
+                        )
+
+                    every {
+                        slackApiClient.fetchAllMessages("C123456", "T000001", null, null, "xoxb-test-token")
+                    } returns messages
+
+                    val documentSlot = slot<List<SourceDocument>>()
+                    every { sourceDocumentService.bulkInsert(capture(documentSlot)) } returns
+                        BulkInsertResult(1, 1, 0, emptyList())
+
+                    val result =
+                        service.collectMessagesWithToken(
+                            botToken = "xoxb-test-token",
+                            workspaceId = "T000001",
+                            channelId = "C123456",
+                        )
+
+                    result.successCount shouldBe 1
+                    documentSlot.captured.size shouldBe 1
+                }
+
+                it("메시지가 없으면 빈 결과를 반환한다") {
+                    every {
+                        slackApiClient.fetchAllMessages("C123456", "T000001", null, null, "xoxb-test-token")
+                    } returns emptyList()
+
+                    val result =
+                        service.collectMessagesWithToken(
+                            botToken = "xoxb-test-token",
+                            workspaceId = "T000001",
+                            channelId = "C123456",
+                        )
+
+                    result.successCount shouldBe 0
+                    result.failureCount shouldBe 0
+                    verify(exactly = 0) { sourceDocumentService.bulkInsert(any()) }
+                }
+
+                it("oldest와 latest 파라미터를 전달한다") {
+                    every {
+                        slackApiClient.fetchAllMessages("C123456", "T000001", "1704067200.000000", "1704153600.000000", "xoxb-test-token")
+                    } returns emptyList()
+
+                    val result =
+                        service.collectMessagesWithToken(
+                            botToken = "xoxb-test-token",
+                            workspaceId = "T000001",
+                            channelId = "C123456",
+                            oldest = "1704067200.000000",
+                            latest = "1704153600.000000",
+                        )
+
+                    result.successCount shouldBe 0
+                    verify {
+                        slackApiClient.fetchAllMessages("C123456", "T000001", "1704067200.000000", "1704153600.000000", "xoxb-test-token")
+                    }
+                }
+            }
+
             describe("collectIncrementalMessages") {
                 it("체크포인트가 없으면 전체 메시지를 수집하고 새 체크포인트를 생성한다") {
                     val messages =
