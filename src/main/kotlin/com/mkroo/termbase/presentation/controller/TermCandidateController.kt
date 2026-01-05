@@ -5,6 +5,8 @@ import com.mkroo.termbase.application.service.IgnoredTermAddResult
 import com.mkroo.termbase.application.service.IgnoredTermService
 import com.mkroo.termbase.application.service.TermAddResult
 import com.mkroo.termbase.application.service.TermCandidateService
+import com.mkroo.termbase.domain.model.document.TimeSeriesInterval
+import com.mkroo.termbase.domain.service.SourceDocumentAnalyzer
 import org.springframework.stereotype.Controller
 import org.springframework.ui.Model
 import org.springframework.web.bind.annotation.GetMapping
@@ -19,6 +21,7 @@ class TermCandidateController(
     private val termCandidateService: TermCandidateService,
     private val glossaryService: GlossaryService,
     private val ignoredTermService: IgnoredTermService,
+    private val sourceDocumentAnalyzer: SourceDocumentAnalyzer,
 ) {
     @GetMapping
     fun list(
@@ -35,6 +38,40 @@ class TermCandidateController(
         model.addAttribute("candidates", candidates)
         model.addAttribute("query", q ?: "")
         return "candidates/list"
+    }
+
+    @GetMapping("/detail")
+    fun detail(
+        @RequestParam name: String,
+        @RequestParam(defaultValue = "week") interval: String,
+        @RequestParam(defaultValue = "10") docSize: Int,
+        model: Model,
+    ): String {
+        val timeSeriesInterval =
+            when (interval.lowercase()) {
+                "day" -> TimeSeriesInterval.DAY
+                "month" -> TimeSeriesInterval.MONTH
+                else -> TimeSeriesInterval.WEEK
+            }
+        val days =
+            when (timeSeriesInterval) {
+                TimeSeriesInterval.DAY -> 30
+                TimeSeriesInterval.WEEK -> 12 * 7
+                TimeSeriesInterval.MONTH -> 365
+            }
+
+        val timeSeries = sourceDocumentAnalyzer.getTermFrequencyTimeSeries(name, timeSeriesInterval, days)
+        val documents = sourceDocumentAnalyzer.searchDocumentsByTerm(name, docSize.coerceIn(1, 100))
+        val totalFrequency = sourceDocumentAnalyzer.getTermFrequency(name)
+
+        model.addAttribute("termName", name)
+        model.addAttribute("timeSeries", timeSeries)
+        model.addAttribute("documents", documents)
+        model.addAttribute("totalFrequency", totalFrequency)
+        model.addAttribute("interval", interval)
+        model.addAttribute("docSize", docSize)
+        model.addAttribute("docSizeOptions", listOf(10, 20, 50, 100))
+        return "candidates/detail"
     }
 
     @PostMapping

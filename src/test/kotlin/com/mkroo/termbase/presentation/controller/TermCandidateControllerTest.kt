@@ -85,6 +85,64 @@ class TermCandidateControllerTest : DescribeSpec() {
                 }
             }
 
+            describe("GET /candidates/detail") {
+                it("용어 후보 상세 페이지를 반환한다") {
+                    mockMvc
+                        .perform(get("/candidates/detail").param("name", "API"))
+                        .andExpect(status().isOk)
+                        .andExpect(view().name("candidates/detail"))
+                        .andExpect(model().attribute("termName", "API"))
+                        .andExpect(model().attributeExists("timeSeries"))
+                        .andExpect(model().attributeExists("documents"))
+                        .andExpect(model().attributeExists("totalFrequency"))
+                        .andExpect(model().attribute("interval", "week"))
+                        .andExpect(model().attribute("docSize", 10))
+                }
+
+                it("일간 간격으로 빈도 데이터를 조회한다") {
+                    mockMvc
+                        .perform(
+                            get("/candidates/detail")
+                                .param("name", "API")
+                                .param("interval", "day"),
+                        ).andExpect(status().isOk)
+                        .andExpect(view().name("candidates/detail"))
+                        .andExpect(model().attribute("interval", "day"))
+                }
+
+                it("월간 간격으로 빈도 데이터를 조회한다") {
+                    mockMvc
+                        .perform(
+                            get("/candidates/detail")
+                                .param("name", "API")
+                                .param("interval", "month"),
+                        ).andExpect(status().isOk)
+                        .andExpect(view().name("candidates/detail"))
+                        .andExpect(model().attribute("interval", "month"))
+                }
+
+                it("문서 개수를 지정하여 조회한다") {
+                    mockMvc
+                        .perform(
+                            get("/candidates/detail")
+                                .param("name", "API")
+                                .param("docSize", "20"),
+                        ).andExpect(status().isOk)
+                        .andExpect(view().name("candidates/detail"))
+                        .andExpect(model().attribute("docSize", 20))
+                }
+
+                it("문서 개수가 범위를 벗어나면 1-100으로 제한된다") {
+                    mockMvc
+                        .perform(
+                            get("/candidates/detail")
+                                .param("name", "API")
+                                .param("docSize", "200"),
+                        ).andExpect(status().isOk)
+                        .andExpect(view().name("candidates/detail"))
+                }
+            }
+
             describe("POST /candidates/ignore") {
                 it("용어를 무시 처리하고 목록 페이지로 리다이렉트한다") {
                     mockMvc
