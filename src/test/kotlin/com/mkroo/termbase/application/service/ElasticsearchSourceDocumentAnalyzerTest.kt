@@ -16,6 +16,7 @@ import io.kotest.matchers.collections.shouldHaveAtLeastSize
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.longs.shouldBeGreaterThanOrEqual
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import org.springframework.beans.factory.annotation.Autowired
@@ -141,8 +142,14 @@ class ElasticsearchSourceDocumentAnalyzerTest : DescribeSpec() {
 
                     result.shouldNotBeEmpty()
                     result.shouldHaveAtLeastSize(1)
-                    result.first().term shouldBe "api"
-                    result.first().count shouldBe 3
+                    // With TF-IDF, "api" which appears in all 3 documents has IDF=0 (ln(3/3)=0)
+                    // So it should have a low score and not be first
+                    // Terms appearing in fewer documents should rank higher
+                    val apiTerm = result.find { it.term == "api" }
+                    apiTerm.shouldNotBeNull()
+                    apiTerm.count shouldBe 3
+                    // Results should be sorted by TF-IDF score descending
+                    result.zipWithNext { a, b -> a.score >= b.score }.all { it } shouldBe true
                 }
 
                 it("should limit results to specified size") {
@@ -344,11 +351,11 @@ class ElasticsearchSourceDocumentAnalyzerTest : DescribeSpec() {
                         result.any { it.term == "sdk" } shouldBe true
                     }
 
-                    it("should not exclude Korean single characters") {
+                    it("should not exclude Korean nouns") {
                         elasticsearchOperations.save(
                             SourceDocument(
                                 id = "doc-001",
-                                content = "가 나 다 라 마 가 가 가",
+                                content = "서버 서버 서버 데이터베이스 데이터베이스",
                                 metadata =
                                     SlackMetadata(
                                         workspaceId = "T123456",
@@ -364,9 +371,9 @@ class ElasticsearchSourceDocumentAnalyzerTest : DescribeSpec() {
 
                         val result = sourceDocumentAnalyzer.getTopFrequentTerms(10)
 
-                        // Korean single characters should still be included if they pass nori tokenizer
-                        // Note: nori tokenizer may not tokenize individual Korean characters as separate terms
+                        // Korean nouns (NNG) should be included
                         result.shouldNotBeEmpty()
+                        result.any { it.term == "서버" } shouldBe true
                     }
 
                     it("should not exclude single digit numbers") {

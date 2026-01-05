@@ -1,10 +1,12 @@
 package com.mkroo.termbase.application.service
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient
 import co.elastic.clients.elasticsearch._types.SortOrder
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregation
 import co.elastic.clients.elasticsearch._types.aggregations.CalendarInterval
 import co.elastic.clients.elasticsearch._types.aggregations.TermsExclude
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import co.elastic.clients.elasticsearch.indices.AnalyzeRequest
 import com.mkroo.termbase.domain.model.document.HighlightedSourceDocument
 import com.mkroo.termbase.domain.model.document.SourceDocument
 import com.mkroo.termbase.domain.model.document.TermFrequency
@@ -26,6 +28,7 @@ import java.time.ZoneId
 @Service
 class ElasticsearchSourceDocumentAnalyzer(
     private val elasticsearchOperations: ElasticsearchOperations,
+    private val elasticsearchClient: ElasticsearchClient,
     private val ignoredTermRepository: IgnoredTermRepository,
     private val termRepository: TermRepository,
 ) : SourceDocumentAnalyzer {
@@ -36,8 +39,8 @@ class ElasticsearchSourceDocumentAnalyzer(
 
         val excludedTerms = collectExcludedTerms()
 
-        // Request more terms to account for filtering single-letter English terms
-        val requestSize = size * 2
+        // Request more terms to account for POS tag and single-letter filtering
+        val requestSize = size * 5
 
         val query =
             NativeQuery
@@ -72,14 +75,61 @@ class ElasticsearchSourceDocumentAnalyzer(
                 .buckets()
                 .array()
 
-        return buckets
-            .map { bucket ->
-                TermFrequency(
-                    term = bucket.key().stringValue(),
-                    count = bucket.docCount(),
-                )
-            }.filterNot { isSingleLetterEnglish(it.term) }
+        val candidateTerms =
+            buckets
+                .map { bucket ->
+                    TermFrequency(
+                        term = bucket.key().stringValue(),
+                        count = bucket.docCount(),
+                        score = bucket.docCount().toDouble(),
+                    )
+                }.filterNot { isSingleLetterEnglish(it.term) }
+
+        val posTagMap = getPosTags(candidateTerms.map { it.term })
+
+        return candidateTerms
+            .map { it.copy(posTag = posTagMap[it.term]) }
+            .filter { it.posTag in RECOMMENDED_POS_TAGS }
             .take(size)
+    }
+
+    private fun getPosTags(terms: List<String>): Map<String, String> {
+        if (terms.isEmpty()) {
+            return emptyMap()
+        }
+
+        val text = terms.joinToString(" ")
+
+        return try {
+            val request =
+                AnalyzeRequest
+                    .Builder()
+                    .index("source_documents")
+                    .analyzer("korean_analyzer")
+                    .text(text)
+                    .explain(true)
+                    .build()
+
+            val response = elasticsearchClient.indices().analyze(request)
+
+            response
+                .detail()
+                ?.tokenizer()
+                ?.tokens()
+                ?.associate { token ->
+                    val term = token.token()
+                    val posTag =
+                        token
+                            .attributes()["leftPOS"]
+                            ?.toString()
+                            ?.trim('"')
+                            ?.substringBefore("(")
+                            ?: "UNKNOWN"
+                    term to posTag
+                } ?: emptyMap()
+        } catch (_: Exception) {
+            emptyMap()
+        }
     }
 
     private fun isSingleLetterEnglish(term: String): Boolean = term.length == 1 && term.first() in 'a'..'z'
@@ -282,5 +332,8 @@ class ElasticsearchSourceDocumentAnalyzer(
 
     companion object {
         const val MAX_DOCUMENT_SIZE = 100
+
+        // 용어 사전 후보로 적합한 품사 태그: 일반명사, 고유명사, 외국어
+        private val RECOMMENDED_POS_TAGS = setOf("NNG", "NNP", "SL")
     }
 }

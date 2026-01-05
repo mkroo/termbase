@@ -58,7 +58,12 @@
                 <tbody class="divide-y divide-notion-border dark:divide-notion-border-dark">
                     <tr th:each="candidate : ${candidates}" class="hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark">
                         <td class="px-4 py-3">
-                            <span class="font-medium text-notion-text dark:text-notion-text-dark" th:text="${candidate.term}"></span>
+                            <a th:href="@{/candidates/detail(name=${candidate.term})}"
+                               class="font-medium text-notion-text dark:text-notion-text-dark hover:text-notion-accent transition"
+                               th:text="${candidate.term}"></a>
+                            <span th:if="${candidate.posTagDisplayName() != null}"
+                                  class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+                                  th:text="${candidate.posTagDisplayName()}"></span>
                         </td>
                         <td class="px-4 py-3">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-notion-accent/10 text-notion-accent"
