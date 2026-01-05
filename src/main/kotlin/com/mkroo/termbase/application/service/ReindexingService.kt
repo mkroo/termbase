@@ -232,24 +232,29 @@ class ReindexingService(
 
             val stoptagsJson = STOPTAGS.joinToString(",") { "\"$it\"" }
 
-            val hasCharFilter = compoundWordMappingsJson.isNotEmpty()
+            val hasCompoundWordFilter = compoundWordMappingsJson.isNotEmpty()
             val hasSynonymFilter = synonymRulesJson.isNotEmpty()
 
             val settingsJson =
                 """
                 {
                   "settings": {
-                    "analysis": {${if (hasCharFilter) {
-                    """
+                    "analysis": {
                       "char_filter": {
+                        "angle_bracket_filter": {
+                          "type": "pattern_replace",
+                          "pattern": "<[^>]+>",
+                          "replacement": ""
+                        }${if (hasCompoundWordFilter) {
+                    """,
                         "compound_word_filter": {
                           "type": "mapping",
                           "mappings": [$compoundWordMappingsJson]
-                        }
-                      },"""
+                        }"""
                 } else {
                     ""
                 }}
+                      },
                       "tokenizer": {
                         "nori_user_dict_tokenizer": {
                           "type": "nori_tokenizer",
@@ -277,12 +282,12 @@ class ReindexingService(
                       },
                       "analyzer": {
                         "korean_analyzer": {
-                          "type": "custom",${if (hasCharFilter) {
-                    """
-                          "char_filter": ["compound_word_filter"],"""
+                          "type": "custom",
+                          "char_filter": ["angle_bracket_filter"${if (hasCompoundWordFilter) {
+                    """, "compound_word_filter""""
                 } else {
                     ""
-                }}
+                }}],
                           "tokenizer": "nori_user_dict_tokenizer",
                           "filter": ["lowercase", "noun_filter"${if (hasSynonymFilter) {
                     """, "synonym_filter""""

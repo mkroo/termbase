@@ -1,5 +1,12 @@
 {
   "analysis": {
+    "char_filter": {
+      "angle_bracket_filter": {
+        "type": "pattern_replace",
+        "pattern": "<[^>]+>",
+        "replacement": ""
+      }
+    },
     "tokenizer": {
       "nori_tokenizer": {
         "type": "nori_tokenizer",
@@ -54,6 +61,9 @@
     "analyzer": {
       "korean_analyzer": {
         "type": "custom",
+        "char_filter": [
+          "angle_bracket_filter"
+        ],
         "tokenizer": "nori_tokenizer",
         "filter": [
           "lowercase",
