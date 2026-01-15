@@ -17,15 +17,16 @@ description: Detects and captures technical decisions during conversations. Use 
 결정 사항이 감지되면, 구현 전에 반드시:
 
 1. 결정을 인식했음을 알림
-2. 사용자에게 저장 여부 확인:
+2. 사용자가 왜 이 결정을 내렸는지 명확해질때까지 AskUserQuestion tool을 이용해서 추가 질문
+3. 사용자에게 저장 여부를 AskUserQuestion tool을 통해 확인 (e.g. docs/decisions/`에 저장할까요?)
 
 > 💡 **결정 사항 감지됨**
 > - 제목: [결정 제목]
 > - 요약: [한 줄 요약]
->
-> `docs/decisions/`에 저장할까요?
+> - 컨텍스트: [결정에 영향을 준 주요 요인들]
+> - 결정을 내린 이유: [Bullet point로 결정한 이유 나열]
 
-3. 동의 시 ADR 형식으로 저장
+4. 동의 시 ADR 형식으로 저장
 
 ## ADR Format
 파일명: `YYYY-MM-DD-NNN-slug.md`
