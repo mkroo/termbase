@@ -31,7 +31,8 @@
         <div th:unless="${#lists.isEmpty(workspace.spaces)}" class="space-y-2">
             <div th:each="space : ${workspace.spaces}"
                  class="flex items-center gap-3 p-3 bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark rounded-lg hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark transition cursor-pointer"
-                 th:onclick="|toggleCheckbox('space-${space.spaceKey}')|">
+                 th:data-space-key="${space.spaceKey}"
+                 onclick="toggleCheckbox('space-' + this.dataset.spaceKey)">
                 <input type="checkbox"
                        th:id="'space-' + ${space.spaceKey}"
                        name="spaceKeys"

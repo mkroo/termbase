@@ -4,6 +4,7 @@ import com.mkroo.termbase.application.service.ConfluenceBatchService
 import com.mkroo.termbase.application.service.ConfluenceOAuthService
 import com.mkroo.termbase.domain.repository.ConfluenceWorkspaceRepository
 import jakarta.servlet.http.HttpSession
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Controller
 import org.springframework.ui.Model
@@ -13,7 +14,9 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseBody
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import org.springframework.web.servlet.mvc.support.RedirectAttributes
+import java.util.concurrent.Executors
 
 @Controller
 @RequestMapping("/confluence")
@@ -22,6 +25,8 @@ class ConfluenceController(
     private val batchService: ConfluenceBatchService,
     private val workspaceRepository: ConfluenceWorkspaceRepository,
 ) {
+    private val executor = Executors.newCachedThreadPool()
+
     companion object {
         private const val OAUTH_STATE_SESSION_KEY = "confluence_oauth_state"
     }
@@ -134,6 +139,45 @@ class ConfluenceController(
                 ),
             )
         }
+
+    @GetMapping("/collect/{cloudId}/stream", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
+    fun collectPagesWithProgress(
+        @PathVariable cloudId: String,
+    ): SseEmitter {
+        val emitter = SseEmitter(0L) // timeout 무제한
+
+        executor.execute {
+            try {
+                batchService.collectPages(cloudId) { progress ->
+                    try {
+                        emitter.send(
+                            SseEmitter
+                                .event()
+                                .name("progress")
+                                .data(progress, MediaType.APPLICATION_JSON),
+                        )
+                    } catch (e: Exception) {
+                        // 클라이언트 연결 끊김
+                    }
+                }
+                emitter.complete()
+            } catch (e: Exception) {
+                try {
+                    emitter.send(
+                        SseEmitter
+                            .event()
+                            .name("error")
+                            .data(mapOf("error" to e.message), MediaType.APPLICATION_JSON),
+                    )
+                } catch (_: Exception) {
+                    // ignore
+                }
+                emitter.completeWithError(e)
+            }
+        }
+
+        return emitter
+    }
 
     data class CollectionResponse(
         val success: Boolean,

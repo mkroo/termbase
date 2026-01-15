@@ -50,7 +50,12 @@ class ConfluenceBatchService(
         return workspaceRepository.save(workspace)
     }
 
-    fun collectPages(cloudId: String): CollectionResult {
+    fun collectPages(cloudId: String): CollectionResult = collectPages(cloudId, null)
+
+    fun collectPages(
+        cloudId: String,
+        onProgress: ((CollectionProgress) -> Unit)?,
+    ): CollectionResult {
         val workspace =
             workspaceRepository.findByCloudId(cloudId)
                 ?: throw IllegalArgumentException("Workspace not found: $cloudId")
@@ -62,36 +67,76 @@ class ConfluenceBatchService(
             return CollectionResult(successCount = 0, failureCount = 0, message = "No spaces selected")
         }
 
+        // 먼저 전체 페이지 수를 계산
+        val allPages =
+            selectedSpaces.flatMap { space ->
+                apiClient
+                    .fetchAllPagesInSpace(cloudId, space.spaceId, refreshedWorkspace.accessToken)
+                    .map { page -> space to page }
+            }
+
+        val totalPages = allPages.size
+        var processedPages = 0
         var successCount = 0
         var failureCount = 0
 
-        selectedSpaces.forEach { space ->
-            val pages = apiClient.fetchAllPagesInSpace(cloudId, space.spaceId, refreshedWorkspace.accessToken)
+        onProgress?.invoke(
+            CollectionProgress(
+                phase = "collecting",
+                current = 0,
+                total = totalPages,
+                currentItem = null,
+                successCount = 0,
+                failureCount = 0,
+            ),
+        )
 
-            pages.forEach { pageDto ->
-                try {
-                    val pageWithBody = apiClient.fetchPageWithBody(cloudId, pageDto.id, refreshedWorkspace.accessToken)
-                    if (pageWithBody != null) {
-                        val plainText = htmlParser.toPlainText(pageWithBody.body?.storage?.value)
-                        val page =
-                            ConfluencePage(
-                                cloudId = cloudId,
-                                spaceKey = space.spaceKey,
-                                pageId = pageDto.id,
-                                title = pageDto.title,
-                                content = plainText,
-                                lastModified = pageWithBody.version?.createdAt ?: Instant.now(),
-                            )
-                        sourceDocumentService.saveDocument(page.toSourceDocument())
-                        successCount++
-                    } else {
-                        failureCount++
-                    }
-                } catch (e: Exception) {
+        allPages.forEach { (space, pageDto) ->
+            try {
+                onProgress?.invoke(
+                    CollectionProgress(
+                        phase = "processing",
+                        current = processedPages,
+                        total = totalPages,
+                        currentItem = pageDto.title,
+                        successCount = successCount,
+                        failureCount = failureCount,
+                    ),
+                )
+
+                val pageWithBody = apiClient.fetchPageWithBody(cloudId, pageDto.id, refreshedWorkspace.accessToken)
+                if (pageWithBody != null) {
+                    val plainText = htmlParser.toPlainText(pageWithBody.body?.storage?.value)
+                    val page =
+                        ConfluencePage(
+                            cloudId = cloudId,
+                            spaceKey = space.spaceKey,
+                            pageId = pageDto.id,
+                            title = pageDto.title,
+                            content = plainText,
+                            lastModified = pageWithBody.version?.createdAt ?: Instant.now(),
+                        )
+                    sourceDocumentService.saveDocument(page.toSourceDocument())
+                    successCount++
+                } else {
                     failureCount++
                 }
+            } catch (e: Exception) {
+                failureCount++
             }
+            processedPages++
         }
+
+        onProgress?.invoke(
+            CollectionProgress(
+                phase = "completed",
+                current = totalPages,
+                total = totalPages,
+                currentItem = null,
+                successCount = successCount,
+                failureCount = failureCount,
+            ),
+        )
 
         return CollectionResult(
             successCount = successCount,
@@ -99,6 +144,15 @@ class ConfluenceBatchService(
             message = "Collection completed",
         )
     }
+
+    data class CollectionProgress(
+        val phase: String,
+        val current: Int,
+        val total: Int,
+        val currentItem: String?,
+        val successCount: Int,
+        val failureCount: Int,
+    )
 
     data class CollectionResult(
         val successCount: Int,

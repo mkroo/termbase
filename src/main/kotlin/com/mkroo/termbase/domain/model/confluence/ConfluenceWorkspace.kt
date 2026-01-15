@@ -21,9 +21,9 @@ class ConfluenceWorkspace(
     val cloudId: String,
     @Column(nullable = false)
     val siteName: String,
-    @Column(nullable = false, length = 2048)
+    @Column(nullable = false, length = 4096)
     var accessToken: String,
-    @Column(nullable = false, length = 2048)
+    @Column(nullable = false, length = 4096)
     var refreshToken: String,
     @Column(nullable = false)
     var tokenExpiresAt: Instant,

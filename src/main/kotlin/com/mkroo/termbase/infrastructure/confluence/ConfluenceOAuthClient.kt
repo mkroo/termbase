@@ -19,9 +19,15 @@ class ConfluenceOAuthClient(
         private const val API_URL = "https://api.atlassian.com"
         private val SCOPES =
             listOf(
+                // Confluence API v2 granular scopes
+                "read:space:confluence",
+                "read:page:confluence",
+                "read:content:confluence",
+                "read:content.metadata:confluence",
+                // Classic scopes (fallback)
                 "read:confluence-space.summary",
-                "read:confluence-content.summary",
                 "read:confluence-content.all",
+                // Refresh token
                 "offline_access",
             )
     }

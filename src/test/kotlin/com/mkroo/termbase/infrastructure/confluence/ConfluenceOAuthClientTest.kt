@@ -33,8 +33,12 @@ class ConfluenceOAuthClientTest :
                     val url = client.buildAuthorizationUrl("test-state")
 
                     url shouldContain "scope="
+                    // Confluence API v2 granular scopes
+                    url shouldContain "read%3Aspace%3Aconfluence"
+                    url shouldContain "read%3Apage%3Aconfluence"
+                    url shouldContain "read%3Acontent%3Aconfluence"
+                    // Classic scopes (fallback)
                     url shouldContain "read%3Aconfluence-space.summary"
-                    url shouldContain "read%3Aconfluence-content.summary"
                     url shouldContain "read%3Aconfluence-content.all"
                     url shouldContain "offline_access"
                 }
