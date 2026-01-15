@@ -22,6 +22,8 @@ class SourceDocumentService(
         return sourceDocumentRepository.saveAll(documents)
     }
 
+    fun saveDocument(document: SourceDocument): BulkInsertResult = bulkInsert(listOf(document))
+
     fun getDocuments(
         page: Int = 0,
         size: Int = DEFAULT_PAGE_SIZE,
