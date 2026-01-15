@@ -72,6 +72,8 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // JVM 메모리 최적화
+    jvmArgs("-XX:+UseParallelGC", "-XX:MaxMetaspaceSize=512m")
 }
 
 tasks.test {
