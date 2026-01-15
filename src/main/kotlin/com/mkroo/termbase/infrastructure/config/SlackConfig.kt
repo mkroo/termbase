@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration
 @ConfigurationProperties(prefix = "slack")
 data class SlackProperties(
     val botToken: String = "",
-    val signingSecret: String = "",
+    val workspaceId: String = "",
 )
 
 @Configuration

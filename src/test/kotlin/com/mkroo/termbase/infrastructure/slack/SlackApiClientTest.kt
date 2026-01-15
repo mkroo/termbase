@@ -19,7 +19,7 @@ import org.springframework.web.client.RestClient
 
 class SlackApiClientTest :
     DescribeSpec({
-        val slackProperties = SlackProperties(botToken = "xoxb-test-token", signingSecret = "test-secret")
+        val slackProperties = SlackProperties(botToken = "xoxb-test-token")
         val restClient = mockk<RestClient>()
         val requestHeadersUriSpec = mockk<RestClient.RequestHeadersUriSpec<*>>()
         val requestHeadersSpec = mockk<RestClient.RequestHeadersSpec<*>>()

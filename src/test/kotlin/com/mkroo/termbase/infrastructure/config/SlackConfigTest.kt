@@ -10,18 +10,18 @@ class SlackConfigTest :
                 val properties = SlackProperties()
 
                 properties.botToken shouldBe ""
-                properties.signingSecret shouldBe ""
+                properties.workspaceId shouldBe ""
             }
 
             it("값을 지정하여 생성할 수 있다") {
                 val properties =
                     SlackProperties(
                         botToken = "xoxb-test-token",
-                        signingSecret = "test-signing-secret",
+                        workspaceId = "T-test-workspace",
                     )
 
                 properties.botToken shouldBe "xoxb-test-token"
-                properties.signingSecret shouldBe "test-signing-secret"
+                properties.workspaceId shouldBe "T-test-workspace"
             }
         }
     })
