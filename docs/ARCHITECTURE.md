@@ -14,6 +14,7 @@ flowchart TB
         Term["Term (용어 + 동의어)"]
         IgnoredTerm["IgnoredTerm (무시된 단어)"]
         SlackWorkspace["SlackWorkspace (슬랙 워크스페이스 + 채널)"]
+        ConfluenceWorkspace["ConfluenceWorkspace (Confluence + Space)"]
         ReminderConfig["ReminderConfig (리마인더 설정)"]
     end
 
@@ -32,13 +33,14 @@ flowchart TB
 
 ### Storage Responsibilities
 
-| Storage       | Data           | Purpose                                                |
-|---------------|----------------|--------------------------------------------------------|
-| MySQL (JPA)   | Term           | 용어 + 동의어 관리, ES user_dictionary/synonym filter 원본 (AR) |
-| MySQL (JPA)   | IgnoredTerm    | 무시된 단어 관리 (용어 추출 시 제외 대상)                              |
-| MySQL (JPA)   | SlackWorkspace | 슬랙 워크스페이스 + 채널 모니터링 설정 (Aggregate Root)                |
-| MySQL (JPA)   | ReminderConfig | 리마인더 설정 (cron 표현식, 상위 N개) 관리                           |
-| Elasticsearch | SourceDocument | 원천 데이터 저장 및 용어 빈도 집계 (Slack, Gmail, Webhook 등)         |
+| Storage       | Data                | Purpose                                                     |
+|---------------|---------------------|-------------------------------------------------------------|
+| MySQL (JPA)   | Term                | 용어 + 동의어 관리, ES user_dictionary/synonym filter 원본 (AR)      |
+| MySQL (JPA)   | IgnoredTerm         | 무시된 단어 관리 (용어 추출 시 제외 대상)                                   |
+| MySQL (JPA)   | SlackWorkspace      | 슬랙 워크스페이스 + 채널 모니터링 설정 (Aggregate Root)                     |
+| MySQL (JPA)   | ConfluenceWorkspace | Confluence 워크스페이스 + Space 선택 설정 (Aggregate Root)            |
+| MySQL (JPA)   | ReminderConfig      | 리마인더 설정 (cron 표현식, 상위 N개) 관리                                |
+| Elasticsearch | SourceDocument      | 원천 데이터 저장 및 용어 빈도 집계 (Slack, Gmail, Webhook, Confluence 등) |
 
 ---
 
@@ -192,6 +194,68 @@ class ReminderConfig(
 )
 ```
 
+### ConfluenceWorkspace (Confluence 워크스페이스) - Aggregate Root
+
+```kotlin
+@Entity
+@Table(name = "confluence_workspaces")
+class ConfluenceWorkspace(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long? = null,
+
+    @Column(nullable = false, unique = true)
+    val cloudId: String,                 // Atlassian Cloud ID
+
+    @Column(nullable = false)
+    val siteName: String,                // Site 이름 (예: mycompany.atlassian.net)
+
+    @Column(nullable = false)
+    val accessToken: String,             // OAuth Access Token (암호화 저장)
+
+    @Column(nullable = false)
+    val refreshToken: String,            // OAuth Refresh Token (암호화 저장)
+
+    @Column(nullable = false)
+    val tokenExpiresAt: Instant,         // 토큰 만료 시각
+
+    @OneToMany(mappedBy = "workspace", cascade = [CascadeType.ALL], orphanRemoval = true)
+    private val _spaces: MutableList<ConfluenceSpace> = mutableListOf(),
+
+    @Column(nullable = false, updatable = false)
+    val connectedAt: Instant
+) {
+    val spaces: List<ConfluenceSpace> get() = _spaces.toList()
+
+    val selectedSpaces: List<ConfluenceSpace>
+        get() = _spaces.filter { it.isSelected }
+
+    fun addSpace(spaceKey: String, name: String): ConfluenceSpace
+    fun selectSpace(spaceKey: String)
+    fun deselectSpace(spaceKey: String)
+    fun updateTokens(accessToken: String, refreshToken: String, expiresAt: Instant)
+}
+
+@Entity
+@Table(name = "confluence_spaces")
+class ConfluenceSpace(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long? = null,
+
+    @Column(nullable = false)
+    val spaceKey: String,                // Space Key (예: TEAM, DEV)
+
+    @Column(nullable = false)
+    var name: String,                    // Space 이름
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "workspace_id", nullable = false)
+    val workspace: ConfluenceWorkspace,
+
+    @Column(nullable = false)
+    var isSelected: Boolean = false      // 수집 대상 여부
+)
+```
+
 ### SourceDocument (원천 문서) - Elasticsearch Document
 
 ```kotlin
@@ -222,7 +286,8 @@ data class SourceDocument(
 @JsonSubTypes(
     JsonSubTypes.Type(value = SlackMetadata::class, name = "slack"),
     JsonSubTypes.Type(value = GmailMetadata::class, name = "gmail"),
-    JsonSubTypes.Type(value = WebhookMetadata::class, name = "webhook")
+    JsonSubTypes.Type(value = WebhookMetadata::class, name = "webhook"),
+    JsonSubTypes.Type(value = ConfluenceMetadata::class, name = "confluence")
 )
 sealed interface SourceMetadata {
     val source: String
@@ -260,6 +325,17 @@ data class WebhookMetadata(
 ) : SourceMetadata {
     // ID 형식: "webhook:{webhookId}:{eventType}"
     override fun generateDocumentId() = "$source:$webhookId:$eventType"
+}
+
+data class ConfluenceMetadata(
+    override val source: String = "confluence",
+    val cloudId: String,                 // Atlassian Cloud ID
+    val spaceKey: String,                // Space Key
+    val pageId: String,                  // Page ID
+    val pageTitle: String                // 페이지 제목
+) : SourceMetadata {
+    // ID 형식: "confluence:{cloudId}:{pageId}"
+    override fun generateDocumentId() = "$source:$cloudId:$pageId"
 }
 ```
 
@@ -691,6 +767,134 @@ slack:
 
 ---
 
+## Confluence Integration
+
+### Overview
+
+Confluence에서 문서를 수집하는 기능입니다. OAuth 2.0 (3LO)을 통해 Atlassian Cloud와 연동하고, 선택한 Space의 페이지를 수집합니다.
+
+```mermaid
+flowchart TB
+    subgraph Confluence["Confluence Cloud"]
+        OAuth[OAuth 2.0]
+        API[REST API v2]
+    end
+
+    subgraph App["Application"]
+        OAuthController[ConfluenceOAuthController]
+        BatchController[ConfluenceBatchController]
+        OAuthService[ConfluenceOAuthService]
+        BatchService[ConfluenceBatchService]
+        ApiClient[ConfluenceApiClient]
+    end
+
+    subgraph Storage["Storage"]
+        ES[(Elasticsearch)]
+        MySQL[(MySQL)]
+    end
+
+    OAuth -->|Authorization Code| OAuthController
+    OAuthController --> OAuthService
+    OAuthService --> MySQL
+
+    BatchController --> BatchService
+    BatchService --> ApiClient
+    ApiClient --> API
+    BatchService --> ES
+    BatchService --> MySQL
+```
+
+### OAuth 2.0 Flow (3-Legged OAuth)
+
+Atlassian Cloud의 OAuth 2.0 (3LO)을 사용하여 사용자 인증을 수행합니다.
+
+**엔드포인트:**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/confluence/oauth/authorize` | OAuth 인증 시작 (Atlassian으로 리다이렉트) |
+| GET | `/confluence/oauth/callback` | OAuth 콜백 (Authorization Code → Token 교환) |
+| DELETE | `/confluence/oauth/disconnect` | 연동 해제 |
+
+**흐름:**
+
+```mermaid
+sequenceDiagram
+    participant User as 사용자
+    participant App as Application
+    participant Atlassian as Atlassian Cloud
+    participant MySQL
+
+    User->>App: GET /confluence/oauth/authorize
+    App->>Atlassian: Redirect to authorization URL
+    Atlassian->>User: 로그인 및 권한 동의
+    Atlassian->>App: GET /confluence/oauth/callback?code=xxx
+    App->>Atlassian: POST /oauth/token (code → token)
+    Atlassian-->>App: access_token, refresh_token
+    App->>Atlassian: GET /oauth/token/accessible-resources
+    Atlassian-->>App: cloudId, site name
+    App->>MySQL: ConfluenceWorkspace 저장
+    App->>User: 연동 완료 페이지
+```
+
+### Space 관리 및 문서 수집
+
+**엔드포인트:**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/confluence/spaces` | Space 목록 조회 |
+| POST | `/api/confluence/spaces/select` | 수집 대상 Space 선택 |
+| POST | `/api/confluence/collect` | 선택한 Space의 페이지 수집 |
+
+**문서 수집 흐름:**
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Controller as ConfluenceBatchController
+    participant Service as ConfluenceBatchService
+    participant ApiClient as ConfluenceApiClient
+    participant MySQL
+    participant ES as Elasticsearch
+
+    Client->>Controller: POST /api/confluence/collect
+    Controller->>Service: collectPages(spaceKeys)
+    Service->>MySQL: findSelectedSpaces()
+    MySQL-->>Service: selectedSpaces
+    loop for each space
+        Service->>ApiClient: fetchAllPages(spaceKey)
+        ApiClient->>ApiClient: pagination loop
+        ApiClient-->>Service: pages
+    end
+    Service->>ES: bulkInsert(documents)
+    Service-->>Controller: BulkInsertResult
+    Controller-->>Client: CollectResponse
+```
+
+### Configuration
+
+**application.yml:**
+
+```yaml
+confluence:
+  client-id: ${CONFLUENCE_CLIENT_ID}
+  client-secret: ${CONFLUENCE_CLIENT_SECRET}
+  redirect-uri: ${CONFLUENCE_REDIRECT_URI:http://localhost:8080/confluence/oauth/callback}
+```
+
+**Atlassian Developer Console 설정:**
+
+1. https://developer.atlassian.com/console/myapps/ 에서 앱 생성
+2. OAuth 2.0 (3LO) 활성화
+3. Callback URL 등록
+4. 필요한 Scopes:
+   - `read:confluence-content.all` - 페이지 내용 읽기
+   - `read:confluence-space.summary` - Space 목록 조회
+   - `offline_access` - Refresh Token 발급
+
+---
+
 ## Elasticsearch Synchronization
 
 MySQL의 용어/동의어 데이터를 Elasticsearch의 user_dictionary와 synonym filter에 적용하는 흐름:
@@ -900,18 +1104,23 @@ com.mkroo.termbase/
 │   │   ├── slack/
 │   │   │   ├── SlackWorkspace.kt      // Aggregate Root (채널 포함)
 │   │   │   └── SlackChannel.kt
+│   │   ├── confluence/
+│   │   │   ├── ConfluenceWorkspace.kt // Aggregate Root (Space 포함)
+│   │   │   └── ConfluenceSpace.kt
 │   │   ├── document/
 │   │   │   ├── SourceDocument.kt      // ES 문서 (@Document)
 │   │   │   ├── SourceMetadata.kt      // sealed interface + @JsonTypeInfo
 │   │   │   ├── SlackMetadata.kt
 │   │   │   ├── GmailMetadata.kt
-│   │   │   └── WebhookMetadata.kt
+│   │   │   ├── WebhookMetadata.kt
+│   │   │   └── ConfluenceMetadata.kt
 │   │   └── reminder/
 │   │       └── ReminderConfig.kt
 │   ├── repository/
 │   │   ├── TermRepository.kt
 │   │   ├── IgnoredTermRepository.kt   // IgnoredTerm 전용 Repository
 │   │   ├── SlackWorkspaceRepository.kt
+│   │   ├── ConfluenceWorkspaceRepository.kt
 │   │   ├── SourceDocumentRepository.kt
 │   │   └── ReminderConfigRepository.kt
 │   ├── service/
@@ -925,18 +1134,22 @@ com.mkroo.termbase/
     │   │   ├── JpaTermRepository.kt
     │   │   ├── JpaIgnoredTermRepository.kt
     │   │   ├── JpaSlackWorkspaceRepository.kt
+    │   │   ├── JpaConfluenceWorkspaceRepository.kt
     │   │   └── JpaReminderConfigRepository.kt
     │   └── elasticsearch/
     │       └── EsSourceDocumentRepository.kt
     ├── external/
-    │   └── slack/
-    │       └── SlackApiClient.kt
+    │   ├── slack/
+    │   │   └── SlackApiClient.kt
+    │   └── confluence/
+    │       └── ConfluenceApiClient.kt
     ├── scheduler/
     │   └── ReminderScheduler.kt
     └── config/
         ├── JpaConfig.kt
         ├── ElasticsearchConfig.kt
-        └── SlackConfig.kt
+        ├── SlackConfig.kt
+        └── ConfluenceConfig.kt
 ```
 
 ---
