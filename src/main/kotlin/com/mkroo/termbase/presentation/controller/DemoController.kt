@@ -3,9 +3,11 @@ package com.mkroo.termbase.presentation.controller
 import com.mkroo.termbase.application.service.ReindexingService
 import com.mkroo.termbase.application.service.SlackConversationsBatchService
 import com.mkroo.termbase.application.service.SourceDocumentService
+import com.mkroo.termbase.infrastructure.config.SlackProperties
 import com.mkroo.termbase.infrastructure.slack.SlackApiClient
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Controller
+import org.springframework.ui.Model
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
@@ -19,9 +21,22 @@ class DemoController(
     private val slackApiClient: SlackApiClient,
     private val slackConversationsBatchService: SlackConversationsBatchService,
     private val sourceDocumentService: SourceDocumentService,
+    private val slackProperties: SlackProperties,
 ) {
+    private val botToken: String
+        get() = slackProperties.botToken
+
+    private val workspaceId: String
+        get() = slackProperties.workspaceId
+
+    private val isSlackConfigured: Boolean
+        get() = botToken.isNotBlank()
+
     @GetMapping
-    fun showDemoPage(): String = "demo/index"
+    fun showDemoPage(model: Model): String {
+        model.addAttribute("slackConfigured", isSlackConfigured)
+        return "demo/index"
+    }
 
     @PostMapping("/reindex")
     @ResponseBody
@@ -56,12 +71,16 @@ class DemoController(
             ),
         )
 
-    @PostMapping("/slack/workspace-info")
+    @GetMapping("/slack/workspace-info")
     @ResponseBody
-    fun getWorkspaceInfo(
-        @RequestParam botToken: String,
-    ): ResponseEntity<WorkspaceInfoResponse> =
-        try {
+    fun getWorkspaceInfo(): ResponseEntity<WorkspaceInfoResponse> {
+        if (!isSlackConfigured) {
+            return ResponseEntity.ok(
+                WorkspaceInfoResponse(ok = false, error = "SLACK_BOT_TOKEN 환경변수가 설정되지 않았습니다."),
+            )
+        }
+
+        return try {
             val authResponse = slackApiClient.authTest(botToken)
             if (!authResponse.ok) {
                 ResponseEntity.ok(
@@ -74,10 +93,11 @@ class DemoController(
                         WorkspaceInfoResponse(ok = false, error = channelsResponse.error ?: "채널 목록 조회 실패"),
                     )
                 } else {
+                    val resolvedWorkspaceId = workspaceId.ifBlank { authResponse.teamId }
                     ResponseEntity.ok(
                         WorkspaceInfoResponse(
                             ok = true,
-                            workspaceId = authResponse.teamId,
+                            workspaceId = resolvedWorkspaceId,
                             workspaceName = authResponse.team,
                             channels =
                                 channelsResponse.channels?.map { channel ->
@@ -96,17 +116,23 @@ class DemoController(
                 WorkspaceInfoResponse(ok = false, error = e.message ?: "알 수 없는 오류"),
             )
         }
+    }
 
     @PostMapping("/slack/collect-ajax")
     @ResponseBody
     fun collectMessagesAjax(
-        @RequestParam botToken: String,
         @RequestParam workspaceId: String,
         @RequestParam channelId: String,
         @RequestParam(required = false) oldest: String?,
         @RequestParam(required = false) latest: String?,
-    ): ResponseEntity<CollectMessagesResponse> =
-        try {
+    ): ResponseEntity<CollectMessagesResponse> {
+        if (!isSlackConfigured) {
+            return ResponseEntity.ok(
+                CollectMessagesResponse(error = "SLACK_BOT_TOKEN 환경변수가 설정되지 않았습니다."),
+            )
+        }
+
+        return try {
             val result =
                 slackConversationsBatchService.collectMessagesWithToken(
                     botToken = botToken,
@@ -127,6 +153,7 @@ class DemoController(
                 CollectMessagesResponse(error = e.message ?: "수집 중 오류 발생"),
             )
         }
+    }
 
     @GetMapping("/source-documents/api")
     @ResponseBody

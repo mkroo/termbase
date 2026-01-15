@@ -21,38 +21,24 @@
                 </div>
 
                 <div class="p-4">
-                    <!-- Token Error Message -->
+                    <!-- Error Message -->
                     <div id="tokenError" class="hidden mb-4 px-3 py-2 text-sm bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 rounded"></div>
 
                     <!-- Success Message -->
                     <div id="collectSuccess" class="hidden mb-4 px-3 py-2 text-sm bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded"></div>
 
-                    <!-- Bot Token -->
-                    <div class="mb-4">
-                        <label for="botToken" class="block text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider mb-2">
-                            Bot Token
-                        </label>
-                        <div class="flex gap-2">
-                            <input type="password" id="botToken"
-                                   class="flex-1 px-3 py-2 text-sm bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
-                                          border border-notion-border dark:border-notion-border-dark rounded
-                                          text-notion-text dark:text-notion-text-dark
-                                          placeholder-notion-text-secondary dark:placeholder-notion-text-secondary-dark
-                                          focus:outline-none focus:ring-1 focus:ring-notion-accent focus:border-notion-accent"
-                                   placeholder="xoxb-...">
-                            <button type="button" id="loadChannelsBtn"
-                                    class="px-3 py-2 text-sm bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
-                                           border border-notion-border dark:border-notion-border-dark rounded
-                                           text-notion-text dark:text-notion-text-dark
-                                           hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark transition
-                                           disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
-                                채널 불러오기
-                            </button>
-                        </div>
+                    <!-- Slack Not Configured Message -->
+                    <div th:if="${!slackConfigured}" class="mb-4 px-3 py-2 text-sm bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800 rounded">
+                        SLACK_BOT_TOKEN 환경변수가 설정되지 않았습니다. 환경변수를 설정한 후 서버를 재시작해주세요.
                     </div>
 
-                    <!-- Channel Section (hidden until loaded) -->
-                    <div id="channelSection" class="hidden space-y-4">
+                    <!-- Loading State -->
+                    <div id="loadingState" th:if="${slackConfigured}" class="mb-4 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark">
+                        워크스페이스 정보를 불러오는 중...
+                    </div>
+
+                    <!-- Channel Section (shown after loaded) -->
+                    <div id="channelSection" th:if="${slackConfigured}" class="hidden space-y-4">
                         <div>
                             <label class="block text-xs font-medium text-notion-text-secondary dark:text-notion-text-secondary-dark uppercase tracking-wider mb-2">
                                 워크스페이스
@@ -227,21 +213,21 @@
         </div>
     </main>
 
-    <script>
+    <script th:inline="javascript">
         // State
         let allChannels = [];
         let currentPage = 0;
         const pageSize = 10;
+        const slackConfigured = /*[[${slackConfigured}]]*/ false;
 
         // Elements
-        const botTokenInput = document.getElementById('botToken');
-        const loadChannelsBtn = document.getElementById('loadChannelsBtn');
         const channelSection = document.getElementById('channelSection');
         const channelSelect = document.getElementById('channelId');
         const channelSearch = document.getElementById('channelSearch');
         const workspaceIdInput = document.getElementById('workspaceId');
         const workspaceNameSpan = document.getElementById('workspaceName');
         const channelCountSpan = document.getElementById('channelCount');
+        const loadingState = document.getElementById('loadingState');
         const tokenError = document.getElementById('tokenError');
         const collectSuccess = document.getElementById('collectSuccess');
         const collectBtn = document.getElementById('collectBtn');
@@ -254,29 +240,18 @@
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
 
-        // Load channels
-        loadChannelsBtn.addEventListener('click', async function() {
-            const botToken = botTokenInput.value.trim();
-            if (!botToken) {
-                showError('Bot Token을 입력하세요.');
-                return;
-            }
+        // Load workspace info on page load
+        async function loadWorkspaceInfo() {
+            if (!slackConfigured) return;
 
-            loadChannelsBtn.disabled = true;
-            loadChannelsBtn.textContent = '불러오는 중...';
             hideError();
             hideSuccess();
 
             try {
-                const formData = new FormData();
-                formData.append('botToken', botToken);
-
-                const response = await fetch('/demo/slack/workspace-info', {
-                    method: 'POST',
-                    body: formData
-                });
-
+                const response = await fetch('/demo/slack/workspace-info');
                 const data = await response.json();
+
+                if (loadingState) loadingState.classList.add('hidden');
 
                 if (!data.ok) {
                     showError(data.error || '워크스페이스 정보를 가져올 수 없습니다.');
@@ -293,25 +268,26 @@
                     collectBtn.disabled = !this.value;
                 });
             } catch (e) {
+                if (loadingState) loadingState.classList.add('hidden');
                 showError('오류가 발생했습니다: ' + e.message);
-            } finally {
-                loadChannelsBtn.disabled = false;
-                loadChannelsBtn.textContent = '채널 불러오기';
             }
-        });
+        }
 
         // Search channels
-        channelSearch.addEventListener('input', function() {
-            const query = this.value.toLowerCase().trim();
-            if (!query) {
-                renderChannels(allChannels);
-                return;
-            }
-            const filtered = allChannels.filter(ch => ch.name.toLowerCase().includes(query));
-            renderChannels(filtered);
-        });
+        if (channelSearch) {
+            channelSearch.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                if (!query) {
+                    renderChannels(allChannels);
+                    return;
+                }
+                const filtered = allChannels.filter(ch => ch.name.toLowerCase().includes(query));
+                renderChannels(filtered);
+            });
+        }
 
         function renderChannels(channels) {
+            if (!channelSelect) return;
             channelSelect.innerHTML = '';
             channels.forEach(function(channel) {
                 const option = document.createElement('option');
@@ -319,12 +295,11 @@
                 option.textContent = (channel.isPrivate ? '🔒 ' : '# ') + channel.name;
                 channelSelect.appendChild(option);
             });
-            collectBtn.disabled = true;
+            if (collectBtn) collectBtn.disabled = true;
         }
 
         // Collect messages
-        collectBtn.addEventListener('click', async function() {
-            const botToken = botTokenInput.value.trim();
+        if (collectBtn) collectBtn.addEventListener('click', async function() {
             const workspaceId = workspaceIdInput.value;
             const channelId = channelSelect.value;
 
@@ -340,7 +315,6 @@
 
             try {
                 const formData = new FormData();
-                formData.append('botToken', botToken);
                 formData.append('workspaceId', workspaceId);
                 formData.append('channelId', channelId);
 
@@ -465,6 +439,7 @@
 
         // Initial load
         loadDocuments();
+        loadWorkspaceInfo();
 
         // Reindexing
         const reindexBtn = document.getElementById('reindexBtn');

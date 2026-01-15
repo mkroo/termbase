@@ -17,4 +17,4 @@ logging:
 
 slack:
   bot-token: ${SLACK_BOT_TOKEN:}
-  signing-secret: ${SLACK_SIGNING_SECRET:}
+  workspace-id: ${SLACK_WORKSPACE_ID:}

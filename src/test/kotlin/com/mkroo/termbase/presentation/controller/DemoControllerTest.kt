@@ -172,7 +172,7 @@ class DemoControllerTest : DescribeSpec() {
                 }
             }
 
-            describe("POST /demo/slack/workspace-info") {
+            describe("GET /demo/slack/workspace-info") {
                 it("워크스페이스 정보와 채널 목록을 반환한다") {
                     every {
                         MockConfig.mockSlackApiClient.authTest(any())
@@ -191,12 +191,10 @@ class DemoControllerTest : DescribeSpec() {
                         )
 
                     mockMvc
-                        .perform(
-                            post("/demo/slack/workspace-info")
-                                .param("botToken", "xoxb-test-token"),
-                        ).andExpect(status().isOk)
+                        .perform(get("/demo/slack/workspace-info"))
+                        .andExpect(status().isOk)
                         .andExpect(jsonPath("$.ok").value(true))
-                        .andExpect(jsonPath("$.workspaceId").value("T123"))
+                        .andExpect(jsonPath("$.workspaceId").value("T-test-workspace"))
                         .andExpect(jsonPath("$.workspaceName").value("test-workspace"))
                         .andExpect(jsonPath("$.channels.length()").value(2))
                         .andExpect(jsonPath("$.channels[0].id").value("C001"))
@@ -209,10 +207,8 @@ class DemoControllerTest : DescribeSpec() {
                     } returns SlackAuthTestResponse(ok = false, error = "invalid_auth")
 
                     mockMvc
-                        .perform(
-                            post("/demo/slack/workspace-info")
-                                .param("botToken", "invalid-token"),
-                        ).andExpect(status().isOk)
+                        .perform(get("/demo/slack/workspace-info"))
+                        .andExpect(status().isOk)
                         .andExpect(jsonPath("$.ok").value(false))
                         .andExpect(jsonPath("$.error").value("invalid_auth"))
                 }
@@ -233,7 +229,6 @@ class DemoControllerTest : DescribeSpec() {
                     mockMvc
                         .perform(
                             post("/demo/slack/collect-ajax")
-                                .param("botToken", "xoxb-test-token")
                                 .param("workspaceId", "T123")
                                 .param("channelId", "C001"),
                         ).andExpect(status().isOk)
@@ -256,7 +251,6 @@ class DemoControllerTest : DescribeSpec() {
                     mockMvc
                         .perform(
                             post("/demo/slack/collect-ajax")
-                                .param("botToken", "xoxb-test-token")
                                 .param("workspaceId", "T123")
                                 .param("channelId", "C999"),
                         ).andExpect(status().isOk)
