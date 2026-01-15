@@ -23,6 +23,7 @@ class TestcontainersConfiguration {
                     .asCompatibleSubstituteFor("docker.elastic.co/elasticsearch/elasticsearch"),
             ).withEnv("xpack.security.enabled", "false")
                 .withEnv("ES_JAVA_OPTS", "-Xms256m -Xmx256m")
+                .withEnv("cluster.max_shards_per_node", "10000")
                 .withStartupTimeout(Duration.ofMinutes(5))
                 .withReuse(true) // 컨테이너 재사용
         }
