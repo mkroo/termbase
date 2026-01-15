@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{layout/default :: head('Confluence 설정')}"></head>
+<body class="bg-white dark:bg-notion-bg-dark min-h-screen">
+<nav th:replace="~{layout/default :: nav}"></nav>
+
+<main class="max-w-5xl mx-auto px-6 py-8">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-notion-text dark:text-notion-text-dark">Confluence 연동</h1>
+        <p class="text-notion-text-secondary dark:text-notion-text-secondary-dark mt-1">
+            Confluence 워크스페이스를 연동하여 문서에서 용어를 수집합니다.
+        </p>
+    </div>
+
+    <!-- Flash Messages -->
+    <div th:if="${success}" class="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+        <p class="text-sm text-green-800 dark:text-green-200" th:text="${success}"></p>
+    </div>
+    <div th:if="${error}" class="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+        <p class="text-sm text-red-800 dark:text-red-200" th:text="${error}"></p>
+    </div>
+
+    <!-- Add Workspace Button -->
+    <div class="mb-6">
+        <a th:href="@{/confluence/oauth/authorize}"
+           class="inline-flex items-center gap-2 px-4 py-2 bg-notion-accent text-white text-sm font-medium rounded-lg hover:bg-notion-accent-hover transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Confluence 워크스페이스 연동
+        </a>
+    </div>
+
+    <!-- Connected Workspaces -->
+    <div th:if="${#lists.isEmpty(workspaces)}" class="text-center py-12">
+        <div class="w-12 h-12 mx-auto mb-4 bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark rounded-full flex items-center justify-center">
+            <svg class="w-6 h-6 text-notion-text-secondary dark:text-notion-text-secondary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+            </svg>
+        </div>
+        <p class="text-notion-text-secondary dark:text-notion-text-secondary-dark">연동된 Confluence 워크스페이스가 없습니다.</p>
+    </div>
+
+    <div th:unless="${#lists.isEmpty(workspaces)}" class="space-y-4">
+        <div th:each="workspace : ${workspaces}"
+             class="bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark rounded-lg p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="font-semibold text-notion-text dark:text-notion-text-dark" th:text="${workspace.siteName}">Site Name</h3>
+                    <p class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark">
+                        Cloud ID: <span th:text="${workspace.cloudId}">cloud-id</span>
+                    </p>
+                    <p class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark">
+                        연동일: <span th:text="${#temporals.format(workspace.connectedAt, 'yyyy-MM-dd HH:mm')}">2024-01-01</span>
+                    </p>
+                    <p class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark">
+                        선택된 Space: <span th:text="${#lists.size(workspace.selectedSpaces)}">0</span>개
+                    </p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a th:href="@{/confluence/spaces/{cloudId}(cloudId=${workspace.cloudId})}"
+                       class="px-3 py-1.5 text-sm bg-notion-bg-hover dark:bg-notion-bg-hover-dark text-notion-text dark:text-notion-text-dark rounded hover:bg-notion-border dark:hover:bg-notion-border-dark transition">
+                        Space 선택
+                    </a>
+                    <button th:attr="onclick='collectPages(\'' + ${workspace.cloudId} + '\')'"
+                            class="px-3 py-1.5 text-sm bg-notion-accent text-white rounded hover:bg-notion-accent-hover transition">
+                        페이지 수집
+                    </button>
+                    <form th:action="@{/confluence/disconnect/{cloudId}(cloudId=${workspace.cloudId})}" method="post" class="inline">
+                        <button type="submit"
+                                class="px-3 py-1.5 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition"
+                                onclick="return confirm('정말 연동을 해제하시겠습니까?')">
+                            연동 해제
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Collection Result Modal -->
+    <div id="collectionModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white dark:bg-notion-bg-secondary-dark rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 class="text-lg font-semibold text-notion-text dark:text-notion-text-dark mb-4">페이지 수집 결과</h3>
+            <div id="collectionResult" class="text-notion-text-secondary dark:text-notion-text-secondary-dark"></div>
+            <button onclick="closeModal()"
+                    class="mt-4 w-full px-4 py-2 bg-notion-accent text-white rounded-lg hover:bg-notion-accent-hover transition">
+                확인
+            </button>
+        </div>
+    </div>
+</main>
+
+<script>
+    function collectPages(cloudId) {
+        const modal = document.getElementById('collectionModal');
+        const result = document.getElementById('collectionResult');
+        result.innerHTML = '<p>수집 중...</p>';
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        fetch('/confluence/collect/' + cloudId, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    result.innerHTML = `
+                        <p class="text-green-600 dark:text-green-400">${data.message}</p>
+                        <p class="mt-2">성공: ${data.successCount}개</p>
+                        <p>실패: ${data.failureCount}개</p>
+                    `;
+                } else {
+                    result.innerHTML = `<p class="text-red-600 dark:text-red-400">${data.message}</p>`;
+                }
+            })
+            .catch(error => {
+                result.innerHTML = `<p class="text-red-600 dark:text-red-400">오류가 발생했습니다: ${error.message}</p>`;
+            });
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('collectionModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+</script>
+</body>
+</html>
