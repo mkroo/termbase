@@ -12,6 +12,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
     JsonSubTypes.Type(value = SlackMetadata::class, name = "slack"),
     JsonSubTypes.Type(value = GmailMetadata::class, name = "gmail"),
     JsonSubTypes.Type(value = WebhookMetadata::class, name = "webhook"),
+    JsonSubTypes.Type(value = ConfluenceMetadata::class, name = "confluence"),
 )
 sealed interface SourceMetadata {
     val source: String
@@ -47,4 +48,14 @@ data class WebhookMetadata(
     val eventType: String,
 ) : SourceMetadata {
     override fun generateDocumentId(): String = "$source:$webhookId:$eventType"
+}
+
+data class ConfluenceMetadata(
+    override val source: String = "confluence",
+    val cloudId: String,
+    val spaceKey: String,
+    val pageId: String,
+    val pageTitle: String,
+) : SourceMetadata {
+    override fun generateDocumentId(): String = "$source:$cloudId:$pageId"
 }

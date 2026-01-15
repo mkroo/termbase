@@ -226,4 +226,90 @@ class SourceMetadataTest :
                 metadata.toString() shouldBe "WebhookMetadata(source=webhook, webhookId=hook-123, eventType=deployment)"
             }
         }
+
+        describe("ConfluenceMetadata") {
+            it("should have correct default source value") {
+                val metadata =
+                    ConfluenceMetadata(
+                        cloudId = "cloud-123",
+                        spaceKey = "DEV",
+                        pageId = "page-456",
+                        pageTitle = "Test Page",
+                    )
+
+                metadata.source shouldBe "confluence"
+                metadata.cloudId shouldBe "cloud-123"
+                metadata.spaceKey shouldBe "DEV"
+                metadata.pageId shouldBe "page-456"
+                metadata.pageTitle shouldBe "Test Page"
+            }
+
+            it("should generate correct document ID") {
+                val metadata =
+                    ConfluenceMetadata(
+                        cloudId = "cloud-123",
+                        spaceKey = "DEV",
+                        pageId = "page-456",
+                        pageTitle = "Test Page",
+                    )
+
+                metadata.generateDocumentId() shouldBe "confluence:cloud-123:page-456"
+            }
+
+            it("should support equality") {
+                val metadata1 =
+                    ConfluenceMetadata(
+                        cloudId = "cloud-123",
+                        spaceKey = "DEV",
+                        pageId = "page-456",
+                        pageTitle = "Test Page",
+                    )
+                val metadata2 =
+                    ConfluenceMetadata(
+                        cloudId = "cloud-123",
+                        spaceKey = "DEV",
+                        pageId = "page-456",
+                        pageTitle = "Test Page",
+                    )
+                val metadata3 =
+                    ConfluenceMetadata(
+                        cloudId = "cloud-999",
+                        spaceKey = "DEV",
+                        pageId = "page-456",
+                        pageTitle = "Test Page",
+                    )
+
+                metadata1 shouldBe metadata2
+                metadata1.hashCode() shouldBe metadata2.hashCode()
+                metadata1 shouldNotBe metadata3
+            }
+
+            it("should support copy") {
+                val metadata =
+                    ConfluenceMetadata(
+                        cloudId = "cloud-123",
+                        spaceKey = "DEV",
+                        pageId = "page-456",
+                        pageTitle = "Test Page",
+                    )
+
+                val copied = metadata.copy(pageTitle = "New Title")
+
+                copied.pageTitle shouldBe "New Title"
+                copied.cloudId shouldBe "cloud-123"
+            }
+
+            it("should have proper toString") {
+                val metadata =
+                    ConfluenceMetadata(
+                        cloudId = "cloud-123",
+                        spaceKey = "DEV",
+                        pageId = "page-456",
+                        pageTitle = "Test Page",
+                    )
+
+                metadata.toString() shouldBe
+                    "ConfluenceMetadata(source=confluence, cloudId=cloud-123, spaceKey=DEV, pageId=page-456, pageTitle=Test Page)"
+            }
+        }
     })
