@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Analyze the conversation and check if any Kotlin files (src/main/kotlin/**/*.kt or src/test/kotlin/**/*.kt) were created or modified.\n\nIf YES (Kotlin files were changed):\n1. Check if './gradlew build' was executed AND succeeded after the changes\n2. If build was NOT run or FAILED:\n   - Respond with: {\"decision\": \"block\", \"reason\": \"Build verification needed - run ./gradlew build to verify lint and tests pass\"}\n3. If build SUCCEEDED, check if implementation files (src/main/kotlin) were changed:\n   - If yes: Respond with: {\"decision\": \"block\", \"reason\": \"Implementation changed - REQUIREMENTS.md review needed\"}\n   - If only test files changed: Respond with: {\"decision\": \"allow\"}\n\nIf NO (no Kotlin files changed):\n- Respond with: {\"decision\": \"allow\"}\n\nPriority: Build verification FIRST, then REQUIREMENTS.md review."
+            "prompt": "Analyze the conversation and check if any Kotlin files (src/main/kotlin/**/*.kt or src/test/kotlin/**/*.kt) were created or modified.\n\nIf YES (Kotlin files were changed):\n1. Check if './gradlew build' was executed AND succeeded after the changes\n2. If build was NOT run or FAILED:\n   - Respond with ONLY: {\"ok\": false, \"message\": \"Build verification needed\"}\n3. If build SUCCEEDED, check if implementation files (src/main/kotlin) were changed:\n   - If yes: Respond with ONLY: {\"ok\": false, \"message\": \"REQUIREMENTS.md review needed\"}\n   - If only test files changed: Respond with ONLY: {\"ok\": true}\n\nIf NO (no Kotlin files changed):\n- Respond with ONLY: {\"ok\": true}\n\nIMPORTANT: Respond with ONLY the JSON object, no other text."
           }
         ]
       }
