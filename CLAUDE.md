@@ -1,267 +1,83 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+이 파일은 이 저장소에서 코드 작업 시 Claude Code(claude.ai/code)에게 가이드를 제공합니다.
 
-## Build Commands
+## 빌드 명령어
 
 ```bash
-# Build the project
+# 프로젝트 빌드
 ./gradlew build
 
-# Run the application
+# 애플리케이션 실행
 ./gradlew bootRun
 
-# Run the application with Testcontainers (for local development)
+# Testcontainers로 애플리케이션 실행 (로컬 개발용)
 ./gradlew bootTestRun
 
-# Run all tests
+# 전체 테스트 실행
 ./gradlew test
 
-# Run a single test class
+# 단일 테스트 클래스 실행
 ./gradlew test --tests "com.mkroo.termbase.TermbaseApplicationTests"
 
-# Run a single test method
+# 단일 테스트 메서드 실행
 ./gradlew test --tests "com.mkroo.termbase.TermbaseApplicationTests.contextLoads"
 
-# Generate REST Docs (runs tests first, then asciidoctor)
+# REST Docs 생성 (테스트 먼저 실행 후 asciidoctor)
 ./gradlew asciidoctor
 
-# Check test coverage (generates report in build/reports/jacoco/test/html/)
+# 테스트 커버리지 확인 (리포트: build/reports/jacoco/test/html/)
 ./gradlew jacocoTestReport
 
-# Verify test coverage meets minimum threshold (100%)
+# 테스트 커버리지 최소 임계값(100%) 검증
 ./gradlew jacocoTestCoverageVerification
 ```
 
-## Tech Stack
+## 기술 스택
 
-- **Language**: Kotlin 2.3.0 with Java 25 toolchain
-- **Framework**: Spring Boot 4.0.1
-- **Web**: Spring MVC with Thymeleaf templates
-- **Database**: Elasticsearch 8 (via Spring Data Elasticsearch), MySQL 8 (via Spring Data JPA + Hibernate)
-- **Security**: Spring Security with Thymeleaf extras
-- **Testing**: Kotest 6, Testcontainers, Spring REST Docs (MockMvc)
-- **Documentation**: Spring REST Docs with Asciidoctor
+- **언어**: Kotlin 2.3.0 + Java 25 toolchain
+- **프레임워크**: Spring Boot 4.0.1
+- **웹**: Spring MVC + Thymeleaf 템플릿
+- **데이터베이스**: Elasticsearch 8 (Spring Data Elasticsearch), MySQL 8 (Spring Data JPA + Hibernate)
+- **보안**: Spring Security + Thymeleaf extras
+- **테스트**: Kotest 6, Testcontainers, Spring REST Docs (MockMvc)
+- **문서화**: Spring REST Docs + Asciidoctor
 
-## Project Structure
+## 프로젝트 구조
 
-- `src/main/kotlin/com/mkroo/termbase/` - Main application code
-- `src/main/resources/` - Configuration and templates
-- `src/test/kotlin/com/mkroo/termbase/` - Test code
-- `build/generated-snippets/` - REST Docs generated snippets (after test run)
+- `src/main/kotlin/com/mkroo/termbase/` - 메인 애플리케이션 코드
+- `src/main/resources/` - 설정 및 템플릿
+- `src/test/kotlin/com/mkroo/termbase/` - 테스트 코드
+- `build/generated-snippets/` - REST Docs 생성 스니펫 (테스트 실행 후)
 
-## Kotlin Compiler Settings
+## Kotlin 컴파일러 설정
 
-The project uses strict JSR-305 null-safety annotations (`-Xjsr305=strict`) and annotation default target for
-param-property (`-Xannotation-default-target=param-property`).
+이 프로젝트는 엄격한 JSR-305 null-safety 어노테이션(`-Xjsr305=strict`)과 param-property용 어노테이션 기본 타겟(`-Xannotation-default-target=param-property`)을 사용합니다.
 
-## Testing Guidelines
+## 스킬
 
-Write all tests using **Kotest DescribeSpec** style. Use `describe` for grouping and `it` for individual test cases.
+`.claude/skills/` 디렉토리에 SKILL.md 형식의 가이드라인이 있습니다. Claude Code가 자동으로 인식합니다.
 
-```kotlin
-@Import(TestcontainersConfiguration::class)
-@SpringBootTest
-class ExampleTests : DescribeSpec() {
-    init {
-        extension(SpringExtension())
+## 프로젝트 문서
 
-        describe("FeatureName") {
-            it("should do something") {
-                // test code
-            }
+작업 시작 전 반드시 다음 문서를 읽어야 합니다:
 
-            context("when some condition") {
-                it("should behave differently") {
-                    // test code
-                }
-            }
-        }
-    }
-}
-```
+- `docs/REQUIREMENTS.md` - 기능 및 비기능 요구사항
+- `docs/ARCHITECTURE.md` - 시스템 아키텍처, 클래스 다이어그램, 데이터 모델
 
-Key points:
+**중요**:
 
-- Use `DescribeSpec` as the base class
-- Register `SpringExtension()` for Spring integration tests
-- Use `describe` to group related tests by feature/class
-- Use `context` for conditional scenarios
-- Use `it` for individual test cases
-- Use Kotest assertions (`shouldBe`, `shouldThrow`, etc.)
+- REQUIREMENTS.md 파일을 읽고 AskUserQuestionTool을 사용하여 기술적 구현, UI & UX, 우려 사항, 트레이드오프 등 모든 측면에 대해 저를 상세히 인터뷰해 주세요. 질문은 뻔하거나 상투적이지 않아야 하며, 매우 심층적으로 접근하여 내용이 완성될 때까지 인터뷰를 계속 이어가야 합니다. 인터뷰가 끝나면 스펙을 파일에 작성하세요.
+- REQUIREMENTS.md 또는 ARCHITECTURE.md 수정이 필요한 경우, 변경 전 반드시 사용자 확인을 받아야 합니다.
+- REQUIREMENTS.md와 ARCHITECTURE.md는 항상 동기화되어야 합니다. 하나의 문서가 수정되면 다른 문서와의 일관성을 확인하고 필요시 업데이트합니다.
 
-## Spring Data JPA Guidelines
+## 개발 워크플로우
 
-Use the minimal `Repository<T, ID>` interface instead of `JpaRepository` or `CrudRepository`. Define only the methods you actually need.
+새로운 로직 작성 후 반드시:
 
-```kotlin
-// Good: 필요한 메서드만 정의
-interface TermRepository : Repository<Term, Long> {
-    fun save(term: Term): Term
-    fun findById(id: Long): Term?
-    fun findByName(name: String): Term?
-    fun existsByName(name: String): Boolean
-}
+1. **100% 커버리지 테스트 작성** - 새 코드의 모든 브랜치, 엣지 케이스, 에러 시나리오를 커버하는 Kotest 테스트 생성
+2. **테스트 실행** - `./gradlew test` 실행하여 모든 테스트 통과 확인
+3. **커버리지 검증** - `./gradlew jacocoTestCoverageVerification` 실행하여 최소 임계값(100%) 충족 확인
+4. **빌드 실행** - `./gradlew build` 실행하여 컴파일 및 테스트 실패 없음 확인
 
-// Avoid: 불필요한 메서드까지 노출
-interface TermRepository : JpaRepository<Term, Long>
-```
-
-**이유:**
-
-- 실제 사용하는 메서드만 노출하여 인터페이스 명확성 향상
-- 불필요한 `deleteAll()`, `flush()` 등의 위험한 메서드 노출 방지
-- 테스트 시 mock 범위 최소화
-
-## Project Documentation
-
-Before starting any task, you MUST read:
-
-- `docs/REQUIREMENTS.md` - Functional and non-functional requirements
-- `docs/ARCHITECTURE.md` - System architecture, class diagrams, and data models
-- `docs/CLEAN_CODE.md` - Clean code guidelines for Kotlin + Spring Boot
-
-**IMPORTANT**:
-
-- If modifications to REQUIREMENTS.md or ARCHITECTURE.md are needed, you MUST ask for user confirmation before making
-  any changes.
-- REQUIREMENTS.md and ARCHITECTURE.md MUST always be in sync. When one document is modified, verify consistency with the
-  other document and update it if needed to maintain alignment.
-
-## Stop Hook: 빌드 검증 및 REQUIREMENTS.md 업데이트
-
-이 프로젝트에는 Kotlin 코드 변경 시 자동으로 **빌드 검증**과 **REQUIREMENTS.md 업데이트**를 요청하는 Stop hook이 설정되어 있습니다.
-
-### 동작 방식
-
-1. Claude가 Kotlin 파일(`src/main/kotlin/**/*.kt` 또는 `src/test/kotlin/**/*.kt`)을 작성/수정하고 작업을 완료하면
-2. Stop hook이 트리거됩니다
-3. **우선순위에 따라** 다음을 수행합니다:
-   - **1순위**: 빌드 검증 (`./gradlew build`)
-   - **2순위**: REQUIREMENTS.md 업데이트 확인 (구현 파일 변경 시에만)
-
-### Claude의 행동 지침
-
-#### 빌드 검증 (`"Build verification needed"` 메시지)
-
-1. `./gradlew build` 명령을 실행합니다
-2. 빌드 실패 시:
-   - lint 오류 수정 (`./gradlew ktlintFormat` 후 재빌드)
-   - 테스트 실패 수정
-3. 빌드 성공할 때까지 반복합니다
-
-#### REQUIREMENTS.md 업데이트 (`"REQUIREMENTS.md review needed"` 메시지)
-
-빌드 성공 후, 구현 파일(`src/main/kotlin`)이 변경된 경우:
-
-1. **AskUserQuestion 도구 사용**: 사용자에게 다음을 물어봅니다:
-   - 새로운 정책/인수조건을 추가해야 하는지
-   - 기존 정책을 수정해야 하는지
-   - 업데이트가 필요 없는지
-
-2. **사용자 응답 반영**: 사용자가 정책 변경을 요청하면:
-   - `docs/REQUIREMENTS.md` 파일을 업데이트합니다
-   - ARCHITECTURE.md와의 일관성을 확인합니다
-
-#### 테스트 파일만 변경된 경우
-
-`src/test/kotlin` 경로의 파일만 변경된 경우, 빌드 성공 후 REQUIREMENTS.md 업데이트는 요청하지 않습니다
-
-## Development Workflow
-
-After writing new logic, you MUST:
-
-1. **Write tests with 100% coverage** - Create Kotest tests covering all branches, edge cases, and error scenarios for
-   the new code
-2. **Run tests** - Execute `./gradlew test` and ensure all tests pass
-3. **Verify coverage** - Execute `./gradlew jacocoTestCoverageVerification` and ensure coverage meets the minimum
-   threshold (100%)
-4. **Run build** - Execute `./gradlew build` and verify there are no compilation or test failures
-
-Do not consider a task complete until all tests pass, coverage is verified, and the build succeeds.
-
-## Commit Guidelines
-
-커밋은 기능/구현 단위로 분리하여 step-by-step으로 수행합니다. 사용자가 별도로 요청하지 않아도 이 원칙을 따릅니다.
-
-### 커밋 분리 원칙
-
-1. **레이어별 분리**: 같은 기능이라도 레이어가 다르면 분리
-   - Domain 레이어 (인터페이스, DTO, 엔티티)
-   - Application 레이어 (서비스 구현)
-   - Presentation 레이어 (컨트롤러, 템플릿)
-
-2. **기능별 분리**: 독립적인 기능은 별도 커밋
-   - 예: 검색 기능과 정렬 기능이 별개라면 분리
-   - 예: UI 개선과 버그 수정은 분리
-
-3. **설정/인프라 분리**: 빌드 설정, 테스트 설정 등은 별도 커밋
-   - 예: JaCoCo 설정, ES 설정 등
-
-### 커밋 메시지 형식
-
-```
-<type>: <한글 제목> (<관련 User Story>)
-
-<본문 - 변경 내용 상세>
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
-```
-
-**Type 종류:**
-- `feat`: 새로운 기능
-- `fix`: 버그 수정
-- `refactor`: 리팩토링
-- `chore`: 빌드, 설정 변경
-- `docs`: 문서 변경
-- `test`: 테스트 추가/수정
-
-### 커밋 순서 예시
-
-복잡한 기능 구현 시 권장 순서:
-
-1. Domain 레이어: 인터페이스, DTO, 엔티티
-2. Infrastructure/Application: 구현체, 서비스
-3. Presentation: 컨트롤러, 뷰
-4. Configuration: 빌드 설정, 환경 설정
-
-```bash
-# 예시: 용어 검색 기능 구현
-git commit -m "feat: SourceDocumentAnalyzer 인터페이스에 검색 메서드 추가"
-git commit -m "feat: ElasticsearchSourceDocumentAnalyzer 검색 구현"
-git commit -m "feat: GlossaryService 검색 기능 추가"
-git commit -m "feat: 용어 검색 UI 구현"
-```
-
-## Kotlin Code Style
-
-**IMPORTANT**: 사용자가 코드 스타일에 대해 피드백을 주면, 해당 내용을 이 섹션에 추가할지 물어보세요. 동일한 스타일 이슈가 반복되지 않도록 문서화합니다.
-
-### Import Guidelines
-
-Always use `import` statements instead of fully qualified class names in code.
-
-```kotlin
-// Good: import 사용
-import java.time.Instant
-
-val now = Instant.now()
-
-// Avoid: fully qualified name 사용
-val now = java.time.Instant.now()
-```
-
-**이유:**
-
-- 코드 가독성 향상
-- 일관된 코드 스타일 유지
-- 클래스 이름 충돌 시에만 fully qualified name 사용
-
-## Documentation Guidelines
-
-- **Diagrams**: Always use **Mermaid** syntax for all diagrams (flowcharts, sequence diagrams, class diagrams, ER
-  diagrams, etc.)
-- Do NOT use ASCII art or plain text box diagrams
-- Mermaid diagrams render properly in GitHub, IDE previews, and documentation sites
+모든 테스트 통과, 커버리지 검증, 빌드 성공 전까지 작업이 완료된 것으로 간주하지 않습니다.

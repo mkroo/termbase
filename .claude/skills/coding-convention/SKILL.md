@@ -1,21 +1,11 @@
-# Clean Code Guidelines for Kotlin + Spring Boot
-
-이 문서는 Kotlin과 Spring Boot 4를 사용하여 깔끔하고 유지보수하기 쉬운 코드를 작성하기 위한 지침을 제공합니다.
-
+---
+name: coding-convention
+description: Kotlin 코드 작성, 코드 리뷰, 리팩토링 시 사용. 네이밍 규칙, 함수/클래스 설계, 레이어별 책임 분리 등 코딩 컨벤션을 따름.
 ---
 
-## 목차
+# 코딩 컨벤션 (Kotlin + Spring Boot)
 
-1. [네이밍 규칙](#1-네이밍-규칙)
-2. [함수 설계](#2-함수-설계)
-3. [클래스 설계](#3-클래스-설계)
-4. [Kotlin 관용구 활용](#4-kotlin-관용구-활용)
-5. [Null Safety](#5-null-safety)
-6. [에러 처리](#6-에러-처리)
-7. [레이어별 책임](#7-레이어별-책임)
-8. [의존성 주입](#8-의존성-주입)
-9. [테스트 용이성](#9-테스트-용이성)
-10. [코드 포맷팅](#10-코드-포맷팅)
+이 문서는 Kotlin과 Spring Boot 4를 사용하여 깔끔하고 유지보수하기 쉬운 코드를 작성하기 위한 지침을 제공합니다.
 
 ---
 
@@ -656,6 +646,29 @@ class JpaTermRepository(
 }
 ```
 
+### 7.5 Spring Data JPA Repository 설계
+
+`JpaRepository`나 `CrudRepository` 대신 최소한의 `Repository<T, ID>` 인터페이스를 사용합니다. 실제 필요한 메서드만 정의합니다.
+
+```kotlin
+// Good: 필요한 메서드만 정의
+interface TermRepository : Repository<Term, Long> {
+    fun save(term: Term): Term
+    fun findById(id: Long): Term?
+    fun findByName(name: String): Term?
+    fun existsByName(name: String): Boolean
+}
+
+// Avoid: 불필요한 메서드까지 노출
+interface TermRepository : JpaRepository<Term, Long>
+```
+
+**이유:**
+
+- 실제 사용하는 메서드만 노출하여 인터페이스 명확성 향상
+- 불필요한 `deleteAll()`, `flush()` 등의 위험한 메서드 노출 방지
+- 테스트 시 mock 범위 최소화
+
 ---
 
 ## 8. 의존성 주입
@@ -775,6 +788,23 @@ fun `should calculate frequency correctly`() {
 - 와일드카드 import 금지
 - 사용하지 않는 import 제거
 - 알파벳 순 정렬
+- fully qualified name 대신 항상 `import` 문 사용
+
+```kotlin
+// Good: import 사용
+import java.time.Instant
+
+val now = Instant.now()
+
+// Avoid: fully qualified name 사용
+val now = java.time.Instant.now()
+```
+
+**이유:**
+
+- 코드 가독성 향상
+- 일관된 코드 스타일 유지
+- 클래스 이름 충돌 시에만 fully qualified name 사용
 
 ### 10.3 줄 바꿈 규칙
 

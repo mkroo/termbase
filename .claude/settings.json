@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Analyze the conversation and check if any Kotlin files (src/main/kotlin/**/*.kt or src/test/kotlin/**/*.kt) were created or modified.\n\nIf YES (Kotlin files were changed):\n1. Check if './gradlew build' was executed AND succeeded after the changes\n2. If build was NOT run or FAILED:\n   - Respond with ONLY: {\"ok\": false, \"message\": \"Build verification needed\"}\n3. If build SUCCEEDED, check if implementation files (src/main/kotlin) were changed:\n   - If yes: Respond with ONLY: {\"ok\": false, \"message\": \"REQUIREMENTS.md review needed\"}\n   - If only test files changed: Respond with ONLY: {\"ok\": true}\n\nIf NO (no Kotlin files changed):\n- Respond with ONLY: {\"ok\": true}\n\nIMPORTANT: Respond with ONLY the JSON object, no other text."
+            "prompt": "Check if implementation Kotlin files (src/main/kotlin/**/*.kt) were modified in this conversation.\n\nRESPONSE FORMAT - Return ONLY one of these exact JSON responses:\n\n1. If src/main/kotlin files were changed:\n{\"ok\":false,\"reason\":\"REQUIREMENTS.md review needed\"}\n\n2. If NO src/main/kotlin files changed (only test files or no Kotlin files):\n{\"ok\":true}\n\nRules:\n- ok must be boolean true or false (NOT strings \"true\" or \"false\")\n- Return raw JSON only, no markdown, no explanation"
           }
         ]
       }
@@ -38,6 +38,7 @@
     "context7@claude-plugins-official": true,
     "feature-dev@claude-plugins-official": true,
     "commit-commands@claude-plugins-official": true,
-    "code-review@claude-plugins-official": true
+    "code-review@claude-plugins-official": true,
+    "kotlin-lsp@claude-plugins-official": true
   }
 }
