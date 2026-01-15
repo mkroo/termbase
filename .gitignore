@@ -42,3 +42,6 @@ out/
 
 ### Claude Code ###
 .claude/settings.local.json
+
+### Local Secrets ###
+**/application-secrets.yml
