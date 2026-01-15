@@ -128,6 +128,31 @@ Before starting any task, you MUST read:
 - REQUIREMENTS.md and ARCHITECTURE.md MUST always be in sync. When one document is modified, verify consistency with the
   other document and update it if needed to maintain alignment.
 
+## REQUIREMENTS.md Auto-Update Hook
+
+이 프로젝트에는 구현 코드 변경 시 자동으로 REQUIREMENTS.md 업데이트를 요청하는 **Stop hook**이 설정되어 있습니다.
+
+### 동작 방식
+
+1. Claude가 Kotlin 구현 파일(`src/main/kotlin/**/*.kt`)을 작성/수정하고 작업을 완료하면
+2. Stop hook이 트리거되어 Claude의 작업을 일시 중단합니다
+3. Claude는 **AskUserQuestion 도구**를 사용하여 사용자에게 REQUIREMENTS.md 업데이트 여부를 물어봅니다
+
+### Claude의 행동 지침
+
+Stop hook에서 `"Implementation changed - REQUIREMENTS.md review needed"` 메시지를 받으면:
+
+1. **AskUserQuestion 도구 사용**: 사용자에게 다음을 물어봅니다:
+   - 새로운 정책/인수조건을 추가해야 하는지
+   - 기존 정책을 수정해야 하는지
+   - 업데이트가 필요 없는지
+
+2. **사용자 응답 반영**: 사용자가 정책 변경을 요청하면:
+   - `docs/REQUIREMENTS.md` 파일을 업데이트합니다
+   - ARCHITECTURE.md와의 일관성을 확인합니다
+
+3. **테스트 파일은 제외**: `src/test/kotlin` 경로의 파일 변경은 트리거하지 않습니다
+
 ## Development Workflow
 
 After writing new logic, you MUST:

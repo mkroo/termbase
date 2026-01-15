@@ -20,5 +20,17 @@
       "Bash(git commit:*)",
       "Bash(git push:*)"
     ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Analyze the conversation and check if any Kotlin implementation files (src/main/kotlin/**/*.kt, excluding test files) were created or modified.\n\nIf YES (implementation files were changed):\n1. Respond with: {\"decision\": \"block\", \"reason\": \"Implementation changed - REQUIREMENTS.md review needed\"}\n2. This will trigger Claude to ask the user using AskUserQuestion tool whether REQUIREMENTS.md needs to be updated with new/changed policies.\n\nIf NO (no implementation files changed, or only test/config files changed):\n- Respond with: {\"decision\": \"allow\"}\n\nIMPORTANT: Only block if actual Kotlin source code in src/main/kotlin was created or modified."
+          }
+        ]
+      }
+    ]
   }
 }
