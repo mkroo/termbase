@@ -11,7 +11,7 @@ import java.time.Instant
 @Setting(settingPath = "elasticsearch/source-documents-settings.json")
 data class SourceDocument(
     @Id
-    val id: String? = null,
+    val id: String,
     @Field(type = FieldType.Text, analyzer = "korean_analyzer", fielddata = true)
     val content: String,
     @Field(type = FieldType.Object)

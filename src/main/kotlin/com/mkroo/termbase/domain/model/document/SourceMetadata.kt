@@ -15,6 +15,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 )
 sealed interface SourceMetadata {
     val source: String
+
+    fun generateDocumentId(): String
 }
 
 data class SlackMetadata(
@@ -23,7 +25,9 @@ data class SlackMetadata(
     val channelId: String,
     val messageId: String,
     val userId: String,
-) : SourceMetadata
+) : SourceMetadata {
+    override fun generateDocumentId(): String = "$source:$workspaceId:$channelId:$messageId"
+}
 
 data class GmailMetadata(
     override val source: String = "gmail",
@@ -33,10 +37,14 @@ data class GmailMetadata(
     val to: List<String>,
     val cc: List<String>,
     val subject: String,
-) : SourceMetadata
+) : SourceMetadata {
+    override fun generateDocumentId(): String = "$source:$messageId"
+}
 
 data class WebhookMetadata(
     override val source: String = "webhook",
     val webhookId: String,
     val eventType: String,
-) : SourceMetadata
+) : SourceMetadata {
+    override fun generateDocumentId(): String = "$source:$webhookId:$eventType"
+}

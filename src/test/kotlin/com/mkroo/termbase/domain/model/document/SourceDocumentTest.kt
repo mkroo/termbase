@@ -17,20 +17,6 @@ class SourceDocumentTest :
                     userId = "U456789",
                 )
 
-            it("should create document with null id by default") {
-                val document =
-                    SourceDocument(
-                        content = "테스트 메시지입니다",
-                        metadata = slackMetadata,
-                        timestamp = timestamp,
-                    )
-
-                document.id shouldBe null
-                document.content shouldBe "테스트 메시지입니다"
-                document.metadata shouldBe slackMetadata
-                document.timestamp shouldBe timestamp
-            }
-
             it("should create document with all properties") {
                 val document =
                     SourceDocument(

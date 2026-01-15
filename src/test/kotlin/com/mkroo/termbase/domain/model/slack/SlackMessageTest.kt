@@ -46,7 +46,7 @@ class SlackMessageTest :
 
                     val sourceDocument = message.toSourceDocument()
 
-                    sourceDocument.id shouldBe null
+                    sourceDocument.id shouldBe "slack:T123456:C789012:1704067200.000000"
                     sourceDocument.content shouldBe "테스트 메시지입니다"
                     sourceDocument.timestamp shouldBe timestamp
                     val metadata = sourceDocument.metadata.shouldBeInstanceOf<SlackMetadata>()

@@ -12,19 +12,21 @@ data class SlackMessage(
     val text: String,
     val timestamp: Instant,
 ) {
-    fun toSourceDocument(): SourceDocument =
-        SourceDocument(
-            id = null,
+    fun toSourceDocument(): SourceDocument {
+        val metadata =
+            SlackMetadata(
+                workspaceId = workspaceId,
+                channelId = channelId,
+                messageId = messageTs,
+                userId = userId,
+            )
+        return SourceDocument(
+            id = metadata.generateDocumentId(),
             content = text,
-            metadata =
-                SlackMetadata(
-                    workspaceId = workspaceId,
-                    channelId = channelId,
-                    messageId = messageTs,
-                    userId = userId,
-                ),
+            metadata = metadata,
             timestamp = timestamp,
         )
+    }
 
     companion object {
         fun fromSlackTs(ts: String): Instant {

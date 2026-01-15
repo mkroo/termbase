@@ -94,16 +94,6 @@ class SourceDocumentServiceTest : DescribeSpec() {
                     saved3?.content shouldBe "세 번째 문서"
                 }
 
-                it("should save document without id and generate id automatically") {
-                    val documents = listOf(createSourceDocument(id = null, content = "ID 없는 문서"))
-
-                    val result = sourceDocumentService.bulkInsert(documents)
-
-                    result.totalCount shouldBe 1
-                    result.successCount shouldBe 1
-                    result.failureCount shouldBe 0
-                }
-
                 it("should update existing document when id already exists") {
                     val originalDocument = createSourceDocument("doc-001", "원본 내용")
                     sourceDocumentService.bulkInsert(listOf(originalDocument))
@@ -119,6 +109,9 @@ class SourceDocumentServiceTest : DescribeSpec() {
                     elasticsearchOperations.indexOps(SourceDocument::class.java).refresh()
                     val saved = elasticsearchOperations.get("doc-001", SourceDocument::class.java)
                     saved?.content shouldBe "수정된 내용"
+
+                    val allDocuments = sourceDocumentService.getDocuments()
+                    allDocuments.totalElements shouldBe 1
                 }
             }
 
@@ -213,7 +206,7 @@ class SourceDocumentServiceTest : DescribeSpec() {
     }
 
     private fun createSourceDocument(
-        id: String?,
+        id: String,
         content: String,
     ): SourceDocument =
         SourceDocument(
@@ -223,7 +216,7 @@ class SourceDocumentServiceTest : DescribeSpec() {
                 SlackMetadata(
                     workspaceId = "T123456",
                     channelId = "C789012",
-                    messageId = "msg-${id ?: "new"}",
+                    messageId = "msg-$id",
                     userId = "U456789",
                 ),
             timestamp = Instant.now(),

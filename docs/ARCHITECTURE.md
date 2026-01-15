@@ -198,7 +198,7 @@ class ReminderConfig(
 @Document(indexName = "source_documents")
 data class SourceDocument(
     @Id
-    val id: String? = null,
+    val id: String,                      // metadata 기반 고유 ID (중복 방지)
 
     @Field(type = FieldType.Text, analyzer = "korean_analyzer")
     val content: String,                 // 원천 텍스트 (형태소 분석 대상)
@@ -226,6 +226,7 @@ data class SourceDocument(
 )
 sealed interface SourceMetadata {
     val source: String
+    fun generateDocumentId(): String     // 중복 방지를 위한 고유 ID 생성
 }
 
 data class SlackMetadata(
@@ -234,7 +235,10 @@ data class SlackMetadata(
     val channelId: String,               // 슬랙 채널 ID
     val messageId: String,               // 슬랙 메시지 ID (ts)
     val userId: String                   // 슬랙 사용자 ID
-) : SourceMetadata
+) : SourceMetadata {
+    // ID 형식: "slack:{workspaceId}:{channelId}:{messageId}"
+    override fun generateDocumentId() = "$source:$workspaceId:$channelId:$messageId"
+}
 
 data class GmailMetadata(
     override val source: String = "gmail",
@@ -244,13 +248,19 @@ data class GmailMetadata(
     val to: List<String>,                // 수신자 목록
     val cc: List<String>,                // 참조 목록
     val subject: String                  // 제목
-) : SourceMetadata
+) : SourceMetadata {
+    // ID 형식: "gmail:{messageId}"
+    override fun generateDocumentId() = "$source:$messageId"
+}
 
 data class WebhookMetadata(
     override val source: String = "webhook",
     val webhookId: String,               // 웹훅 ID
     val eventType: String                // 이벤트 타입
-) : SourceMetadata
+) : SourceMetadata {
+    // ID 형식: "webhook:{webhookId}:{eventType}"
+    override fun generateDocumentId() = "$source:$webhookId:$eventType"
+}
 ```
 
 ---

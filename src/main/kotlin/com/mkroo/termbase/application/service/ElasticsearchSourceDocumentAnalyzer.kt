@@ -269,7 +269,7 @@ class ElasticsearchSourceDocumentAnalyzer(
                 hit.getHighlightField("content").firstOrNull() ?: document.content
 
             HighlightedSourceDocument(
-                id = document.id ?: "",
+                id = document.id,
                 content = document.content,
                 highlightedContent = highlightedContent,
                 timestamp = document.timestamp,

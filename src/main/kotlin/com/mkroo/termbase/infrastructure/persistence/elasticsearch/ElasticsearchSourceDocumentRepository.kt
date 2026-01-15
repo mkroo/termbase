@@ -20,9 +20,10 @@ class ElasticsearchSourceDocumentRepository(
 
         val indexQueries =
             documents.map { document ->
-                val builder = IndexQueryBuilder().withObject(document)
-                document.id?.let { builder.withId(it) }
-                builder.build()
+                IndexQueryBuilder()
+                    .withId(document.id)
+                    .withObject(document)
+                    .build()
             }
 
         elasticsearchOperations.bulkIndex(indexQueries, SourceDocument::class.java)

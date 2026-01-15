@@ -140,7 +140,7 @@ class DemoController(
                 documents =
                     documentsPage.documents.map { doc ->
                         SourceDocumentDto(
-                            id = doc.id ?: "",
+                            id = doc.id,
                             content = doc.content,
                             metadata =
                                 MetadataDto(

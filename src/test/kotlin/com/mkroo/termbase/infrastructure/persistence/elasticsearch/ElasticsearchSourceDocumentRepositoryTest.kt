@@ -50,30 +50,6 @@ class ElasticsearchSourceDocumentRepositoryTest : DescribeSpec() {
                     result.failureCount shouldBe 0
                 }
 
-                it("should save documents without id") {
-                    val documents =
-                        listOf(
-                            SourceDocument(
-                                id = null,
-                                content = "ID 없는 문서",
-                                metadata =
-                                    SlackMetadata(
-                                        workspaceId = "T123456",
-                                        channelId = "C789012",
-                                        messageId = "msg-001",
-                                        userId = "U456789",
-                                    ),
-                                timestamp = Instant.now(),
-                            ),
-                        )
-
-                    val result = repository.saveAll(documents)
-
-                    result.totalCount shouldBe 1
-                    result.successCount shouldBe 1
-                    result.failureCount shouldBe 0
-                }
-
                 it("should create index if not exists") {
                     val indexOps = elasticsearchOperations.indexOps(SourceDocument::class.java)
                     indexOps.exists() shouldBe false

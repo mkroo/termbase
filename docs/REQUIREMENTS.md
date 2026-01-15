@@ -157,6 +157,7 @@
 - metadata는 source 타입에 따라 SlackMetadata, GmailMetadata, WebhookMetadata 중 하나이다
 - Bulk 추가 시 성공한 문서 수와 실패한 문서 수를 반환한다
 - 일부 문서가 실패해도 나머지 문서는 정상적으로 추가된다 (Partial Success)
+- 동일한 소스의 문서는 중복 저장되지 않는다 (metadata 기반 ID로 upsert)
 - 추가된 문서는 즉시 용어 빈도 집계에 반영된다
  
 ### 11. 합성어 처리
