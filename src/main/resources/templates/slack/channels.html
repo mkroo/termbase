@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{layout/default :: head('채널 선택')}"></head>
+<body class="bg-white dark:bg-notion-bg-dark min-h-screen">
+<nav th:replace="~{layout/default :: nav}"></nav>
+
+<main class="max-w-5xl mx-auto px-6 py-8 pb-24">
+    <div class="mb-6">
+        <a th:href="@{/slack/settings}" class="text-notion-text-secondary dark:text-notion-text-secondary-dark hover:text-notion-accent text-sm mb-2 inline-block">
+            &larr; 설정으로 돌아가기
+        </a>
+        <h1 class="text-2xl font-bold text-notion-text dark:text-notion-text-dark" th:text="${workspace.teamName}">Team Name</h1>
+        <p class="text-notion-text-secondary dark:text-notion-text-secondary-dark mt-1">
+            수집할 채널을 선택하세요.
+        </p>
+    </div>
+
+    <!-- Flash Messages -->
+    <div th:if="${success}" class="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+        <p class="text-sm text-green-800 dark:text-green-200" th:text="${success}"></p>
+    </div>
+    <div th:if="${error}" class="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+        <p class="text-sm text-red-800 dark:text-red-200" th:text="${error}"></p>
+    </div>
+
+    <form th:action="@{/slack/channels/{teamId}/select(teamId=${workspace.teamId})}" method="post" id="channelForm">
+        <div th:if="${#lists.isEmpty(workspace.channels)}" class="text-center py-12">
+            <p class="text-notion-text-secondary dark:text-notion-text-secondary-dark">채널이 없습니다.</p>
+        </div>
+
+        <div th:unless="${#lists.isEmpty(workspace.channels)}">
+            <!-- Search and Controls -->
+            <div class="sticky top-0 z-10 bg-white dark:bg-notion-bg-dark pb-4 border-b border-notion-border dark:border-notion-border-dark mb-4">
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <!-- Search Input -->
+                    <div class="flex-1 relative">
+                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-notion-text-secondary dark:text-notion-text-secondary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input type="text"
+                               id="searchInput"
+                               placeholder="채널 검색..."
+                               class="w-full pl-10 pr-4 py-2 text-sm bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                                      border border-notion-border dark:border-notion-border-dark rounded-lg
+                                      text-notion-text dark:text-notion-text-dark
+                                      placeholder-notion-text-secondary dark:placeholder-notion-text-secondary-dark
+                                      focus:outline-none focus:ring-2 focus:ring-notion-accent focus:border-transparent">
+                    </div>
+                    <!-- Quick Actions -->
+                    <div class="flex gap-2">
+                        <button type="button" onclick="selectAll()"
+                                class="px-3 py-2 text-sm bg-notion-bg-hover dark:bg-notion-bg-hover-dark text-notion-text dark:text-notion-text-dark rounded-lg hover:bg-notion-border dark:hover:bg-notion-border-dark transition whitespace-nowrap">
+                            전체 선택
+                        </button>
+                        <button type="button" onclick="deselectAll()"
+                                class="px-3 py-2 text-sm bg-notion-bg-hover dark:bg-notion-bg-hover-dark text-notion-text dark:text-notion-text-dark rounded-lg hover:bg-notion-border dark:hover:bg-notion-border-dark transition whitespace-nowrap">
+                            전체 해제
+                        </button>
+                        <button type="button" onclick="toggleSelectedOnly()"
+                                id="filterToggle"
+                                class="px-3 py-2 text-sm bg-notion-bg-hover dark:bg-notion-bg-hover-dark text-notion-text dark:text-notion-text-dark rounded-lg hover:bg-notion-border dark:hover:bg-notion-border-dark transition whitespace-nowrap">
+                            선택만 보기
+                        </button>
+                    </div>
+                </div>
+                <!-- Selected Summary -->
+                <div class="mt-3 flex items-center gap-2 text-sm">
+                    <span class="text-notion-text-secondary dark:text-notion-text-secondary-dark">선택됨:</span>
+                    <span id="selectedCount" class="font-medium text-notion-accent">0</span>
+                    <span class="text-notion-text-secondary dark:text-notion-text-secondary-dark">/</span>
+                    <span th:text="${#lists.size(workspace.channels)}" class="text-notion-text-secondary dark:text-notion-text-secondary-dark">0</span>
+                    <span class="text-notion-text-secondary dark:text-notion-text-secondary-dark">개</span>
+                </div>
+            </div>
+
+            <!-- Selected Channels Preview -->
+            <div id="selectedPreview" class="mb-4 p-3 bg-notion-accent/5 border border-notion-accent/20 rounded-lg hidden">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-notion-text dark:text-notion-text-dark">선택된 채널</span>
+                    <button type="button" onclick="togglePreview()" class="text-xs text-notion-text-secondary hover:text-notion-accent">
+                        접기
+                    </button>
+                </div>
+                <div id="selectedTags" class="flex flex-wrap gap-2">
+                </div>
+            </div>
+
+            <!-- Channel List -->
+            <div id="channelList" class="space-y-1 max-h-[60vh] overflow-y-auto pr-2">
+                <div th:each="channel : ${workspace.channels}"
+                     th:data-channel-id="${channel.channelId}"
+                     th:data-channel-name="${channel.name.toLowerCase()}"
+                     class="channel-item flex items-center gap-3 p-3 rounded-lg transition cursor-pointer"
+                     th:classappend="${channel.isSelected} ? 'bg-notion-accent/10 border border-notion-accent/30' : 'bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark'"
+                     onclick="toggleChannel(this)">
+                    <input type="checkbox"
+                           th:id="'channel-' + ${channel.channelId}"
+                           name="channelIds"
+                           th:value="${channel.channelId}"
+                           th:checked="${channel.isSelected}"
+                           class="w-4 h-4 text-notion-accent rounded border-notion-border dark:border-notion-border-dark focus:ring-notion-accent cursor-pointer"
+                           onclick="event.stopPropagation()">
+                    <label th:for="'channel-' + ${channel.channelId}" class="flex-1 cursor-pointer select-none" onclick="event.stopPropagation()">
+                        <span class="font-medium text-notion-text dark:text-notion-text-dark">
+                            <span th:if="${channel.isPrivate}" class="text-notion-text-secondary dark:text-notion-text-secondary-dark mr-1">
+                                <svg class="w-3.5 h-3.5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                </svg>
+                            </span>
+                            <span th:unless="${channel.isPrivate}" class="text-notion-text-secondary dark:text-notion-text-secondary-dark mr-1">#</span>
+                            <span th:text="${channel.name}">channel-name</span>
+                        </span>
+                    </label>
+                    <span class="selected-badge text-xs px-2 py-0.5 bg-notion-accent text-white rounded-full"
+                          th:classappend="${channel.isSelected} ? '' : 'hidden'">
+                        선택됨
+                    </span>
+                </div>
+            </div>
+
+            <!-- No Results Message -->
+            <div id="noResults" class="hidden text-center py-8 text-notion-text-secondary dark:text-notion-text-secondary-dark">
+                검색 결과가 없습니다.
+            </div>
+        </div>
+
+        <!-- Fixed Bottom Bar -->
+        <div class="fixed bottom-0 left-0 right-0 bg-white dark:bg-notion-bg-dark border-t border-notion-border dark:border-notion-border-dark p-4 z-20">
+            <div class="max-w-5xl mx-auto flex items-center justify-between">
+                <div class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark">
+                    <span id="bottomSelectedCount">0</span>개 채널 선택됨
+                </div>
+                <div class="flex gap-3">
+                    <a th:href="@{/slack/settings}"
+                       class="px-4 py-2 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark rounded-lg transition">
+                        취소
+                    </a>
+                    <button type="submit"
+                            class="px-6 py-2 bg-notion-accent text-white text-sm font-medium rounded-lg hover:bg-notion-accent-hover transition">
+                        선택 저장
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</main>
+
+<script>
+    let showSelectedOnly = false;
+    let previewVisible = false;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+        updateSelectedPreview();
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', filterChannels);
+    });
+
+    function toggleChannel(element) {
+        const checkbox = element.querySelector('input[type="checkbox"]');
+        checkbox.checked = !checkbox.checked;
+        updateChannelStyle(element, checkbox.checked);
+        updateSelectedCount();
+        updateSelectedPreview();
+    }
+
+    function updateChannelStyle(element, isSelected) {
+        const badge = element.querySelector('.selected-badge');
+        if (isSelected) {
+            element.classList.remove('bg-notion-bg-secondary', 'dark:bg-notion-bg-secondary-dark', 'hover:bg-notion-bg-hover', 'dark:hover:bg-notion-bg-hover-dark');
+            element.classList.add('bg-notion-accent/10', 'border', 'border-notion-accent/30');
+            badge.classList.remove('hidden');
+        } else {
+            element.classList.add('bg-notion-bg-secondary', 'dark:bg-notion-bg-secondary-dark', 'hover:bg-notion-bg-hover', 'dark:hover:bg-notion-bg-hover-dark');
+            element.classList.remove('bg-notion-accent/10', 'border', 'border-notion-accent/30');
+            badge.classList.add('hidden');
+        }
+    }
+
+    function selectAll() {
+        document.querySelectorAll('.channel-item:not(.hidden) input[type="checkbox"]').forEach(cb => {
+            cb.checked = true;
+            updateChannelStyle(cb.closest('.channel-item'), true);
+        });
+        updateSelectedCount();
+        updateSelectedPreview();
+    }
+
+    function deselectAll() {
+        document.querySelectorAll('.channel-item:not(.hidden) input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+            updateChannelStyle(cb.closest('.channel-item'), false);
+        });
+        updateSelectedCount();
+        updateSelectedPreview();
+    }
+
+    function updateSelectedCount() {
+        const count = document.querySelectorAll('input[name="channelIds"]:checked').length;
+        document.getElementById('selectedCount').textContent = count;
+        document.getElementById('bottomSelectedCount').textContent = count;
+    }
+
+    function filterChannels() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        let visibleCount = 0;
+
+        document.querySelectorAll('.channel-item').forEach(item => {
+            const name = item.dataset.channelName;
+            const id = item.dataset.channelId.toLowerCase();
+            const isSelected = item.querySelector('input[type="checkbox"]').checked;
+
+            const matchesSearch = name.includes(query) || id.includes(query);
+            const matchesFilter = !showSelectedOnly || isSelected;
+
+            if (matchesSearch && matchesFilter) {
+                item.classList.remove('hidden');
+                visibleCount++;
+            } else {
+                item.classList.add('hidden');
+            }
+        });
+
+        document.getElementById('noResults').classList.toggle('hidden', visibleCount > 0);
+    }
+
+    function toggleSelectedOnly() {
+        showSelectedOnly = !showSelectedOnly;
+        const btn = document.getElementById('filterToggle');
+        if (showSelectedOnly) {
+            btn.classList.add('bg-notion-accent', 'text-white');
+            btn.classList.remove('bg-notion-bg-hover', 'dark:bg-notion-bg-hover-dark', 'text-notion-text', 'dark:text-notion-text-dark');
+            btn.textContent = '전체 보기';
+        } else {
+            btn.classList.remove('bg-notion-accent', 'text-white');
+            btn.classList.add('bg-notion-bg-hover', 'dark:bg-notion-bg-hover-dark', 'text-notion-text', 'dark:text-notion-text-dark');
+            btn.textContent = '선택만 보기';
+        }
+        filterChannels();
+    }
+
+    function updateSelectedPreview() {
+        const selected = document.querySelectorAll('input[name="channelIds"]:checked');
+        const preview = document.getElementById('selectedPreview');
+        const tagsContainer = document.getElementById('selectedTags');
+
+        if (selected.length === 0) {
+            preview.classList.add('hidden');
+            return;
+        }
+
+        preview.classList.remove('hidden');
+        tagsContainer.innerHTML = '';
+
+        selected.forEach(cb => {
+            const channelItem = cb.closest('.channel-item');
+            const nameSpan = channelItem.querySelector('label span span:last-child');
+            const name = nameSpan ? nameSpan.textContent : cb.value;
+            const id = cb.value;
+
+            const tag = document.createElement('span');
+            tag.className = 'inline-flex items-center gap-1 px-2 py-1 bg-notion-accent/20 text-notion-accent text-xs rounded-full';
+            tag.innerHTML = `
+                #${name}
+                <button type="button" onclick="removeChannel('${id}')" class="hover:text-red-500 ml-1">&times;</button>
+            `;
+            tagsContainer.appendChild(tag);
+        });
+    }
+
+    function removeChannel(id) {
+        const checkbox = document.getElementById('channel-' + id);
+        if (checkbox) {
+            checkbox.checked = false;
+            updateChannelStyle(checkbox.closest('.channel-item'), false);
+            updateSelectedCount();
+            updateSelectedPreview();
+            filterChannels();
+        }
+    }
+
+    function togglePreview() {
+        const preview = document.getElementById('selectedPreview');
+        preview.classList.toggle('hidden');
+    }
+</script>
+</body>
+</html>

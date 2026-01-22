@@ -12,7 +12,7 @@ spring:
 
 logging:
   level:
-    org.hibernate.SQL: debug
+    org.hibernate.SQL: trace
     org.hibernate.orm.jdbc.bind: trace
 
 slack:

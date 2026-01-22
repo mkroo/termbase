@@ -20,17 +20,6 @@
         <p class="text-sm text-red-800 dark:text-red-200" th:text="${error}"></p>
     </div>
 
-    <!-- Add Workspace Button -->
-    <div class="mb-6">
-        <a th:href="@{/confluence/oauth/authorize}"
-           class="inline-flex items-center gap-2 px-4 py-2 bg-notion-accent text-white text-sm font-medium rounded-lg hover:bg-notion-accent-hover transition">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-            Confluence 워크스페이스 연동
-        </a>
-    </div>
-
     <!-- Connected Workspaces -->
     <div th:if="${#lists.isEmpty(workspaces)}" class="text-center py-12">
         <div class="w-12 h-12 mx-auto mb-4 bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark rounded-full flex items-center justify-center">
@@ -48,7 +37,7 @@
                 <div>
                     <h3 class="font-semibold text-notion-text dark:text-notion-text-dark" th:text="${workspace.siteName}">Site Name</h3>
                     <p class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark">
-                        Cloud ID: <span th:text="${workspace.cloudId}">cloud-id</span>
+                        Site ID: <span th:text="${workspace.siteId}">site-id</span>
                     </p>
                     <p class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark">
                         연동일: <span th:text="${#temporals.format(workspace.connectedAt, 'yyyy-MM-dd HH:mm')}">2024-01-01</span>
@@ -58,15 +47,15 @@
                     </p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <a th:href="@{/confluence/spaces/{cloudId}(cloudId=${workspace.cloudId})}"
+                    <a th:href="@{/confluence/spaces/{siteId}(siteId=${workspace.siteId})}"
                        class="px-3 py-1.5 text-sm bg-notion-bg-hover dark:bg-notion-bg-hover-dark text-notion-text dark:text-notion-text-dark rounded hover:bg-notion-border dark:hover:bg-notion-border-dark transition">
                         Space 선택
                     </a>
-                    <button th:attr="onclick='collectPages(\'' + ${workspace.cloudId} + '\')'"
+                    <button th:attr="onclick='collectPages(\'' + ${workspace.siteId} + '\')'"
                             class="px-3 py-1.5 text-sm bg-notion-accent text-white rounded hover:bg-notion-accent-hover transition">
                         페이지 수집
                     </button>
-                    <form th:action="@{/confluence/disconnect/{cloudId}(cloudId=${workspace.cloudId})}" method="post" class="inline">
+                    <form th:action="@{/confluence/disconnect/{siteId}(siteId=${workspace.siteId})}" method="post" class="inline">
                         <button type="submit"
                                 class="px-3 py-1.5 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition"
                                 onclick="return confirm('정말 연동을 해제하시겠습니까?')">
@@ -117,7 +106,7 @@
 <script>
     let eventSource = null;
 
-    function collectPages(cloudId) {
+    function collectPages(siteId) {
         const modal = document.getElementById('collectionModal');
         const progressSection = document.getElementById('progressSection');
         const resultSection = document.getElementById('resultSection');
@@ -139,7 +128,7 @@
         }
 
         // Start SSE connection
-        eventSource = new EventSource('/confluence/collect/' + cloudId + '/stream');
+        eventSource = new EventSource('/confluence/collect/' + siteId + '/stream');
 
         eventSource.addEventListener('progress', function(event) {
             const data = JSON.parse(event.data);

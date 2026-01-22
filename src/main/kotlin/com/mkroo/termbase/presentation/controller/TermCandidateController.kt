@@ -1,9 +1,11 @@
 package com.mkroo.termbase.presentation.controller
 
+import com.mkroo.termbase.application.service.ExtractionResult
 import com.mkroo.termbase.application.service.GlossaryService
 import com.mkroo.termbase.application.service.IgnoredTermAddResult
 import com.mkroo.termbase.application.service.IgnoredTermService
 import com.mkroo.termbase.application.service.TermAddResult
+import com.mkroo.termbase.application.service.TermCandidateExtractionService
 import com.mkroo.termbase.application.service.TermCandidateService
 import com.mkroo.termbase.domain.model.document.TimeSeriesInterval
 import com.mkroo.termbase.domain.service.SourceDocumentAnalyzer
@@ -19,6 +21,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes
 @RequestMapping("/candidates")
 class TermCandidateController(
     private val termCandidateService: TermCandidateService,
+    private val termCandidateExtractionService: TermCandidateExtractionService,
     private val glossaryService: GlossaryService,
     private val ignoredTermService: IgnoredTermService,
     private val sourceDocumentAnalyzer: SourceDocumentAnalyzer,
@@ -26,17 +29,28 @@ class TermCandidateController(
     @GetMapping
     fun list(
         @RequestParam(required = false) q: String?,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int,
         model: Model,
     ): String {
-        val candidates =
+        val validPage = page.coerceAtLeast(0)
+        val validSize = size.coerceIn(10, 100)
+
+        val candidatesPage =
             if (q.isNullOrBlank()) {
-                termCandidateService.getTermCandidates()
+                termCandidateService.getTermCandidates(validPage, validSize)
             } else {
-                termCandidateService.searchTermCandidates(q)
+                termCandidateService.searchTermCandidates(q, validPage, validSize)
             }
 
-        model.addAttribute("candidates", candidates)
+        model.addAttribute("candidates", candidatesPage.content)
         model.addAttribute("query", q ?: "")
+        model.addAttribute("currentPage", validPage)
+        model.addAttribute("pageSize", validSize)
+        model.addAttribute("totalPages", candidatesPage.totalPages)
+        model.addAttribute("totalElements", candidatesPage.totalElements)
+        model.addAttribute("hasNext", candidatesPage.hasNext())
+        model.addAttribute("hasPrevious", candidatesPage.hasPrevious())
         return "candidates/list"
     }
 
@@ -143,5 +157,23 @@ class TermCandidateController(
         }
 
         return "redirect:$redirectUrl"
+    }
+
+    @PostMapping("/extract")
+    fun extractCandidates(redirectAttributes: RedirectAttributes): String {
+        when (val result = termCandidateExtractionService.extractCandidates()) {
+            is ExtractionResult.Success -> {
+                redirectAttributes.addFlashAttribute(
+                    "success",
+                    "용어 후보 추출이 완료되었습니다. (문서: ${result.totalDocuments}개, 후보: ${result.totalCandidates}개)",
+                )
+            }
+
+            is ExtractionResult.Failure -> {
+                redirectAttributes.addFlashAttribute("error", "추출 중 오류가 발생했습니다: ${result.errorMessage}")
+            }
+        }
+
+        return "redirect:/candidates"
     }
 }

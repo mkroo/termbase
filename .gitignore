@@ -45,3 +45,6 @@ out/
 
 ### Local Secrets ###
 **/application-secrets.yml
+
+### Test Data ###
+src/test/resources/testdata/

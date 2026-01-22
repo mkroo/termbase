@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{layout/default :: head('Slack 설정')}"></head>
+<body class="bg-white dark:bg-notion-bg-dark min-h-screen">
+<nav th:replace="~{layout/default :: nav}"></nav>
+
+<main class="max-w-5xl mx-auto px-6 py-8">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-notion-text dark:text-notion-text-dark">Slack 연동</h1>
+        <p class="text-notion-text-secondary dark:text-notion-text-secondary-dark mt-1">
+            Slack 워크스페이스를 연동하여 메시지에서 용어를 수집합니다.
+        </p>
+    </div>
+
+    <!-- Flash Messages -->
+    <div th:if="${success}" class="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+        <p class="text-sm text-green-800 dark:text-green-200" th:text="${success}"></p>
+    </div>
+    <div th:if="${error}" class="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+        <p class="text-sm text-red-800 dark:text-red-200" th:text="${error}"></p>
+    </div>
+
+    <!-- Connected Workspaces -->
+    <div th:if="${#lists.isEmpty(workspaces)}" class="text-center py-12">
+        <div class="w-12 h-12 mx-auto mb-4 bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark rounded-full flex items-center justify-center">
+            <svg class="w-6 h-6 text-notion-text-secondary dark:text-notion-text-secondary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+            </svg>
+        </div>
+        <p class="text-notion-text-secondary dark:text-notion-text-secondary-dark">연동된 Slack 워크스페이스가 없습니다.</p>
+    </div>
+
+    <div th:unless="${#lists.isEmpty(workspaces)}" class="space-y-4">
+        <div th:each="workspace : ${workspaces}"
+             class="bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark rounded-lg p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="font-semibold text-notion-text dark:text-notion-text-dark" th:text="${workspace.teamName}">Team Name</h3>
+                    <p class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark">
+                        Team ID: <span th:text="${workspace.teamId}">team-id</span>
+                    </p>
+                    <p class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark">
+                        연동일: <span th:text="${#temporals.format(workspace.connectedAt, 'yyyy-MM-dd HH:mm')}">2024-01-01</span>
+                    </p>
+                    <p class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark">
+                        선택된 채널: <span th:text="${#lists.size(workspace.selectedChannels)}">0</span>개
+                    </p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <a th:href="@{/slack/channels/{teamId}(teamId=${workspace.teamId})}"
+                       class="px-3 py-1.5 text-sm bg-notion-bg-hover dark:bg-notion-bg-hover-dark text-notion-text dark:text-notion-text-dark rounded hover:bg-notion-border dark:hover:bg-notion-border-dark transition">
+                        채널 선택
+                    </a>
+                    <button th:attr="onclick='collectMessages(\'' + ${workspace.teamId} + '\')'"
+                            class="px-3 py-1.5 text-sm bg-notion-accent text-white rounded hover:bg-notion-accent-hover transition">
+                        메시지 수집
+                    </button>
+                    <form th:action="@{/slack/disconnect/{teamId}(teamId=${workspace.teamId})}" method="post" class="inline">
+                        <button type="submit"
+                                class="px-3 py-1.5 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition"
+                                onclick="return confirm('정말 연동을 해제하시겠습니까?')">
+                            연동 해제
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Collection Progress Modal -->
+    <div id="collectionModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white dark:bg-notion-bg-secondary-dark rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 class="text-lg font-semibold text-notion-text dark:text-notion-text-dark mb-4">메시지 수집</h3>
+
+            <!-- Progress Section -->
+            <div id="progressSection">
+                <div class="mb-3">
+                    <div class="flex justify-between text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark mb-1">
+                        <span id="progressText">준비 중...</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                    <div class="w-full bg-notion-bg-hover dark:bg-notion-bg-hover-dark rounded-full h-2">
+                        <div id="progressBar" class="bg-notion-accent h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+                <p id="currentItem" class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark truncate"></p>
+                <div class="mt-3 flex gap-4 text-sm">
+                    <span class="text-green-600 dark:text-green-400">성공: <span id="successCount">0</span></span>
+                    <span class="text-red-600 dark:text-red-400">실패: <span id="failureCount">0</span></span>
+                </div>
+            </div>
+
+            <!-- Result Section (hidden initially) -->
+            <div id="resultSection" class="hidden">
+                <div id="collectionResult" class="text-notion-text-secondary dark:text-notion-text-secondary-dark"></div>
+            </div>
+
+            <button id="closeButton" onclick="closeModal()" disabled
+                    class="mt-4 w-full px-4 py-2 bg-notion-accent text-white rounded-lg hover:bg-notion-accent-hover transition disabled:opacity-50 disabled:cursor-not-allowed">
+                수집 중...
+            </button>
+        </div>
+    </div>
+</main>
+
+<script>
+    let eventSource = null;
+
+    function collectMessages(teamId) {
+        const modal = document.getElementById('collectionModal');
+        const progressSection = document.getElementById('progressSection');
+        const resultSection = document.getElementById('resultSection');
+        const closeButton = document.getElementById('closeButton');
+
+        // Reset UI
+        progressSection.classList.remove('hidden');
+        resultSection.classList.add('hidden');
+        closeButton.disabled = true;
+        closeButton.textContent = '수집 중...';
+        updateProgress(0, 0, '준비 중...', null, 0, 0);
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        // Close existing connection if any
+        if (eventSource) {
+            eventSource.close();
+        }
+
+        // Start SSE connection
+        eventSource = new EventSource('/slack/collect/' + teamId + '/stream');
+
+        eventSource.addEventListener('progress', function(event) {
+            const data = JSON.parse(event.data);
+            updateProgress(
+                data.current,
+                data.total,
+                getPhaseText(data.phase),
+                data.currentItem,
+                data.successCount,
+                data.failureCount
+            );
+
+            if (data.phase === 'completed') {
+                showResult(data.successCount, data.failureCount, true);
+                eventSource.close();
+            }
+        });
+
+        eventSource.addEventListener('error', function(event) {
+            let errorMsg = '수집 중 오류가 발생했습니다.';
+            try {
+                const data = JSON.parse(event.data);
+                if (data.error) errorMsg = data.error;
+            } catch (_) {}
+            showResult(0, 0, false, errorMsg);
+            eventSource.close();
+        });
+
+        eventSource.onerror = function() {
+            // Connection closed or error
+            eventSource.close();
+        };
+    }
+
+    function updateProgress(current, total, text, currentItem, success, failure) {
+        const percent = total > 0 ? Math.round((current / total) * 100) : 0;
+        document.getElementById('progressText').textContent = text;
+        document.getElementById('progressPercent').textContent = percent + '%';
+        document.getElementById('progressBar').style.width = percent + '%';
+        document.getElementById('currentItem').textContent = currentItem ? '#' + currentItem : '';
+        document.getElementById('successCount').textContent = success;
+        document.getElementById('failureCount').textContent = failure;
+    }
+
+    function getPhaseText(phase) {
+        switch (phase) {
+            case 'collecting': return '채널 목록 확인 중...';
+            case 'processing': return '메시지 수집 중...';
+            case 'completed': return '수집 완료!';
+            default: return '처리 중...';
+        }
+    }
+
+    function showResult(success, failure, isSuccess, errorMsg) {
+        const resultSection = document.getElementById('resultSection');
+        const result = document.getElementById('collectionResult');
+        const closeButton = document.getElementById('closeButton');
+
+        if (isSuccess) {
+            result.innerHTML = `
+                <div class="text-center py-4">
+                    <div class="w-12 h-12 mx-auto mb-3 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                    </div>
+                    <p class="text-green-600 dark:text-green-400 font-medium">수집이 완료되었습니다!</p>
+                    <p class="mt-2 text-notion-text-secondary dark:text-notion-text-secondary-dark">
+                        성공: ${success}개 / 실패: ${failure}개
+                    </p>
+                </div>
+            `;
+        } else {
+            result.innerHTML = `
+                <div class="text-center py-4">
+                    <div class="w-12 h-12 mx-auto mb-3 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </div>
+                    <p class="text-red-600 dark:text-red-400 font-medium">${errorMsg || '오류가 발생했습니다.'}</p>
+                </div>
+            `;
+        }
+
+        document.getElementById('progressSection').classList.add('hidden');
+        resultSection.classList.remove('hidden');
+        closeButton.disabled = false;
+        closeButton.textContent = '확인';
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('collectionModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+    }
+</script>
+</body>
+</html>

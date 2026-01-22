@@ -27,4 +27,16 @@ data class ConfluencePage(
             timestamp = lastModified,
         )
     }
+
+    /**
+     * ES 저장 시 예상 메모리 크기를 바이트 단위로 추정합니다.
+     * UTF-8 인코딩 기준으로 한글은 3바이트, 영문은 1바이트로 계산됩니다.
+     * 메타데이터 오버헤드로 약 500바이트를 추가합니다.
+     */
+    fun estimateSizeBytes(): Long {
+        val contentBytes = content.toByteArray(Charsets.UTF_8).size.toLong()
+        val titleBytes = title.toByteArray(Charsets.UTF_8).size.toLong()
+        val metadataOverhead = 500L // cloudId, spaceKey, pageId, timestamp 등
+        return contentBytes + titleBytes + metadataOverhead
+    }
 }

@@ -74,6 +74,12 @@ class TermCandidateControllerTest : DescribeSpec() {
                         .andExpect(view().name("candidates/list"))
                         .andExpect(model().attributeExists("candidates"))
                         .andExpect(model().attributeExists("query"))
+                        .andExpect(model().attributeExists("currentPage"))
+                        .andExpect(model().attributeExists("pageSize"))
+                        .andExpect(model().attributeExists("totalPages"))
+                        .andExpect(model().attributeExists("totalElements"))
+                        .andExpect(model().attributeExists("hasNext"))
+                        .andExpect(model().attributeExists("hasPrevious"))
                 }
 
                 it("검색어가 있으면 필터링된 결과를 반환한다") {
@@ -82,6 +88,37 @@ class TermCandidateControllerTest : DescribeSpec() {
                         .andExpect(status().isOk)
                         .andExpect(view().name("candidates/list"))
                         .andExpect(model().attribute("query", "API"))
+                }
+
+                it("페이지 파라미터를 지정할 수 있다") {
+                    mockMvc
+                        .perform(
+                            get("/candidates")
+                                .param("page", "2")
+                                .param("size", "50"),
+                        ).andExpect(status().isOk)
+                        .andExpect(view().name("candidates/list"))
+                        .andExpect(model().attribute("currentPage", 2))
+                        .andExpect(model().attribute("pageSize", 50))
+                }
+
+                it("page가 음수이면 0으로 보정한다") {
+                    mockMvc
+                        .perform(get("/candidates").param("page", "-1"))
+                        .andExpect(status().isOk)
+                        .andExpect(model().attribute("currentPage", 0))
+                }
+
+                it("size가 범위를 벗어나면 10-100으로 보정한다") {
+                    mockMvc
+                        .perform(get("/candidates").param("size", "5"))
+                        .andExpect(status().isOk)
+                        .andExpect(model().attribute("pageSize", 10))
+
+                    mockMvc
+                        .perform(get("/candidates").param("size", "200"))
+                        .andExpect(status().isOk)
+                        .andExpect(model().attribute("pageSize", 100))
                 }
             }
 
@@ -304,6 +341,16 @@ class TermCandidateControllerTest : DescribeSpec() {
                         ).andExpect(status().is3xxRedirection)
                         .andExpect(redirectedUrl("/candidates"))
                         .andExpect(flash().attributeExists("warning"))
+                }
+            }
+
+            describe("POST /candidates/extract") {
+                it("용어 후보 추출을 실행하고 목록 페이지로 리다이렉트한다") {
+                    mockMvc
+                        .perform(post("/candidates/extract"))
+                        .andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/candidates"))
+                        .andExpect(flash().attributeExists("success"))
                 }
             }
         }

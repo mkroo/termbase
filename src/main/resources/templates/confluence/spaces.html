@@ -4,7 +4,7 @@
 <body class="bg-white dark:bg-notion-bg-dark min-h-screen">
 <nav th:replace="~{layout/default :: nav}"></nav>
 
-<main class="max-w-5xl mx-auto px-6 py-8">
+<main class="max-w-5xl mx-auto px-6 py-8 pb-24">
     <div class="mb-6">
         <a th:href="@{/confluence/settings}" class="text-notion-text-secondary dark:text-notion-text-secondary-dark hover:text-notion-accent text-sm mb-2 inline-block">
             &larr; 설정으로 돌아가기
@@ -23,59 +23,259 @@
         <p class="text-sm text-red-800 dark:text-red-200" th:text="${error}"></p>
     </div>
 
-    <form th:action="@{/confluence/spaces/{cloudId}/select(cloudId=${workspace.cloudId})}" method="post">
+    <form th:action="@{/confluence/spaces/{siteId}/select(siteId=${workspace.siteId})}" method="post" id="spaceForm">
         <div th:if="${#lists.isEmpty(workspace.spaces)}" class="text-center py-12">
             <p class="text-notion-text-secondary dark:text-notion-text-secondary-dark">Space가 없습니다.</p>
         </div>
 
-        <div th:unless="${#lists.isEmpty(workspace.spaces)}" class="space-y-2">
-            <div th:each="space : ${workspace.spaces}"
-                 class="flex items-center gap-3 p-3 bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark rounded-lg hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark transition cursor-pointer"
-                 th:data-space-key="${space.spaceKey}"
-                 onclick="toggleCheckbox('space-' + this.dataset.spaceKey)">
-                <input type="checkbox"
-                       th:id="'space-' + ${space.spaceKey}"
-                       name="spaceKeys"
-                       th:value="${space.spaceKey}"
-                       th:checked="${space.isSelected}"
-                       class="w-4 h-4 text-notion-accent rounded border-notion-border dark:border-notion-border-dark focus:ring-notion-accent cursor-pointer"
-                       onclick="event.stopPropagation()">
-                <label th:for="'space-' + ${space.spaceKey}" class="flex-1 cursor-pointer" onclick="event.stopPropagation()">
-                    <span class="font-medium text-notion-text dark:text-notion-text-dark" th:text="${space.name}">Space Name</span>
-                    <span class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark ml-2" th:text="'(' + ${space.spaceKey} + ')'">KEY</span>
-                </label>
+        <div th:unless="${#lists.isEmpty(workspace.spaces)}">
+            <!-- Search and Controls -->
+            <div class="sticky top-0 z-10 bg-white dark:bg-notion-bg-dark pb-4 border-b border-notion-border dark:border-notion-border-dark mb-4">
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <!-- Search Input -->
+                    <div class="flex-1 relative">
+                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-notion-text-secondary dark:text-notion-text-secondary-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input type="text"
+                               id="searchInput"
+                               placeholder="Space 검색..."
+                               class="w-full pl-10 pr-4 py-2 text-sm bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                                      border border-notion-border dark:border-notion-border-dark rounded-lg
+                                      text-notion-text dark:text-notion-text-dark
+                                      placeholder-notion-text-secondary dark:placeholder-notion-text-secondary-dark
+                                      focus:outline-none focus:ring-2 focus:ring-notion-accent focus:border-transparent">
+                    </div>
+                    <!-- Quick Actions -->
+                    <div class="flex gap-2">
+                        <button type="button" onclick="selectAll()"
+                                class="px-3 py-2 text-sm bg-notion-bg-hover dark:bg-notion-bg-hover-dark text-notion-text dark:text-notion-text-dark rounded-lg hover:bg-notion-border dark:hover:bg-notion-border-dark transition whitespace-nowrap">
+                            전체 선택
+                        </button>
+                        <button type="button" onclick="deselectAll()"
+                                class="px-3 py-2 text-sm bg-notion-bg-hover dark:bg-notion-bg-hover-dark text-notion-text dark:text-notion-text-dark rounded-lg hover:bg-notion-border dark:hover:bg-notion-border-dark transition whitespace-nowrap">
+                            전체 해제
+                        </button>
+                        <button type="button" onclick="toggleSelectedOnly()"
+                                id="filterToggle"
+                                class="px-3 py-2 text-sm bg-notion-bg-hover dark:bg-notion-bg-hover-dark text-notion-text dark:text-notion-text-dark rounded-lg hover:bg-notion-border dark:hover:bg-notion-border-dark transition whitespace-nowrap">
+                            선택만 보기
+                        </button>
+                    </div>
+                </div>
+                <!-- Selected Summary -->
+                <div class="mt-3 flex items-center gap-2 text-sm">
+                    <span class="text-notion-text-secondary dark:text-notion-text-secondary-dark">선택됨:</span>
+                    <span id="selectedCount" class="font-medium text-notion-accent">0</span>
+                    <span class="text-notion-text-secondary dark:text-notion-text-secondary-dark">/</span>
+                    <span th:text="${#lists.size(workspace.spaces)}" class="text-notion-text-secondary dark:text-notion-text-secondary-dark">0</span>
+                    <span class="text-notion-text-secondary dark:text-notion-text-secondary-dark">개</span>
+                </div>
+            </div>
+
+            <!-- Selected Spaces Preview -->
+            <div id="selectedPreview" class="mb-4 p-3 bg-notion-accent/5 border border-notion-accent/20 rounded-lg hidden">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-notion-text dark:text-notion-text-dark">선택된 Space</span>
+                    <button type="button" onclick="togglePreview()" class="text-xs text-notion-text-secondary hover:text-notion-accent">
+                        접기
+                    </button>
+                </div>
+                <div id="selectedTags" class="flex flex-wrap gap-2">
+                </div>
+            </div>
+
+            <!-- Space List -->
+            <div id="spaceList" class="space-y-1 max-h-[60vh] overflow-y-auto pr-2">
+                <div th:each="space : ${workspace.spaces}"
+                     th:data-space-key="${space.spaceKey}"
+                     th:data-space-name="${space.name.toLowerCase()}"
+                     class="space-item flex items-center gap-3 p-3 rounded-lg transition cursor-pointer"
+                     th:classappend="${space.isSelected} ? 'bg-notion-accent/10 border border-notion-accent/30' : 'bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark'"
+                     onclick="toggleSpace(this)">
+                    <input type="checkbox"
+                           th:id="'space-' + ${space.spaceKey}"
+                           name="spaceKeys"
+                           th:value="${space.spaceKey}"
+                           th:checked="${space.isSelected}"
+                           class="w-4 h-4 text-notion-accent rounded border-notion-border dark:border-notion-border-dark focus:ring-notion-accent cursor-pointer"
+                           onclick="event.stopPropagation()">
+                    <label th:for="'space-' + ${space.spaceKey}" class="flex-1 cursor-pointer select-none" onclick="event.stopPropagation()">
+                        <span class="font-medium text-notion-text dark:text-notion-text-dark" th:text="${space.name}">Space Name</span>
+                        <span class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark ml-2" th:text="'(' + ${space.spaceKey} + ')'">KEY</span>
+                    </label>
+                    <span class="selected-badge text-xs px-2 py-0.5 bg-notion-accent text-white rounded-full"
+                          th:classappend="${space.isSelected} ? '' : 'hidden'">
+                        선택됨
+                    </span>
+                </div>
+            </div>
+
+            <!-- No Results Message -->
+            <div id="noResults" class="hidden text-center py-8 text-notion-text-secondary dark:text-notion-text-secondary-dark">
+                검색 결과가 없습니다.
             </div>
         </div>
 
-        <div class="mt-6 flex gap-3">
-            <button type="submit"
-                    class="px-4 py-2 bg-notion-accent text-white text-sm font-medium rounded-lg hover:bg-notion-accent-hover transition">
-                선택 저장
-            </button>
-            <button type="button" onclick="selectAll()"
-                    class="px-4 py-2 bg-notion-bg-hover dark:bg-notion-bg-hover-dark text-notion-text dark:text-notion-text-dark text-sm rounded-lg hover:bg-notion-border dark:hover:bg-notion-border-dark transition">
-                전체 선택
-            </button>
-            <button type="button" onclick="deselectAll()"
-                    class="px-4 py-2 bg-notion-bg-hover dark:bg-notion-bg-hover-dark text-notion-text dark:text-notion-text-dark text-sm rounded-lg hover:bg-notion-border dark:hover:bg-notion-border-dark transition">
-                전체 해제
-            </button>
+        <!-- Fixed Bottom Bar -->
+        <div class="fixed bottom-0 left-0 right-0 bg-white dark:bg-notion-bg-dark border-t border-notion-border dark:border-notion-border-dark p-4 z-20">
+            <div class="max-w-5xl mx-auto flex items-center justify-between">
+                <div class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark">
+                    <span id="bottomSelectedCount">0</span>개 Space 선택됨
+                </div>
+                <div class="flex gap-3">
+                    <a th:href="@{/confluence/settings}"
+                       class="px-4 py-2 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark rounded-lg transition">
+                        취소
+                    </a>
+                    <button type="submit"
+                            class="px-6 py-2 bg-notion-accent text-white text-sm font-medium rounded-lg hover:bg-notion-accent-hover transition">
+                        선택 저장
+                    </button>
+                </div>
+            </div>
         </div>
     </form>
 </main>
 
 <script>
-    function toggleCheckbox(id) {
-        const checkbox = document.getElementById(id);
+    let showSelectedOnly = false;
+    let previewVisible = false;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedCount();
+        updateSelectedPreview();
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', filterSpaces);
+    });
+
+    function toggleSpace(element) {
+        const checkbox = element.querySelector('input[type="checkbox"]');
         checkbox.checked = !checkbox.checked;
+        updateSpaceStyle(element, checkbox.checked);
+        updateSelectedCount();
+        updateSelectedPreview();
+    }
+
+    function updateSpaceStyle(element, isSelected) {
+        const badge = element.querySelector('.selected-badge');
+        if (isSelected) {
+            element.classList.remove('bg-notion-bg-secondary', 'dark:bg-notion-bg-secondary-dark', 'hover:bg-notion-bg-hover', 'dark:hover:bg-notion-bg-hover-dark');
+            element.classList.add('bg-notion-accent/10', 'border', 'border-notion-accent/30');
+            badge.classList.remove('hidden');
+        } else {
+            element.classList.add('bg-notion-bg-secondary', 'dark:bg-notion-bg-secondary-dark', 'hover:bg-notion-bg-hover', 'dark:hover:bg-notion-bg-hover-dark');
+            element.classList.remove('bg-notion-accent/10', 'border', 'border-notion-accent/30');
+            badge.classList.add('hidden');
+        }
     }
 
     function selectAll() {
-        document.querySelectorAll('input[name="spaceKeys"]').forEach(cb => cb.checked = true);
+        document.querySelectorAll('.space-item:not(.hidden) input[type="checkbox"]').forEach(cb => {
+            cb.checked = true;
+            updateSpaceStyle(cb.closest('.space-item'), true);
+        });
+        updateSelectedCount();
+        updateSelectedPreview();
     }
 
     function deselectAll() {
-        document.querySelectorAll('input[name="spaceKeys"]').forEach(cb => cb.checked = false);
+        document.querySelectorAll('.space-item:not(.hidden) input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+            updateSpaceStyle(cb.closest('.space-item'), false);
+        });
+        updateSelectedCount();
+        updateSelectedPreview();
+    }
+
+    function updateSelectedCount() {
+        const count = document.querySelectorAll('input[name="spaceKeys"]:checked').length;
+        document.getElementById('selectedCount').textContent = count;
+        document.getElementById('bottomSelectedCount').textContent = count;
+    }
+
+    function filterSpaces() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        let visibleCount = 0;
+
+        document.querySelectorAll('.space-item').forEach(item => {
+            const name = item.dataset.spaceName;
+            const key = item.dataset.spaceKey.toLowerCase();
+            const isSelected = item.querySelector('input[type="checkbox"]').checked;
+
+            const matchesSearch = name.includes(query) || key.includes(query);
+            const matchesFilter = !showSelectedOnly || isSelected;
+
+            if (matchesSearch && matchesFilter) {
+                item.classList.remove('hidden');
+                visibleCount++;
+            } else {
+                item.classList.add('hidden');
+            }
+        });
+
+        document.getElementById('noResults').classList.toggle('hidden', visibleCount > 0);
+    }
+
+    function toggleSelectedOnly() {
+        showSelectedOnly = !showSelectedOnly;
+        const btn = document.getElementById('filterToggle');
+        if (showSelectedOnly) {
+            btn.classList.add('bg-notion-accent', 'text-white');
+            btn.classList.remove('bg-notion-bg-hover', 'dark:bg-notion-bg-hover-dark', 'text-notion-text', 'dark:text-notion-text-dark');
+            btn.textContent = '전체 보기';
+        } else {
+            btn.classList.remove('bg-notion-accent', 'text-white');
+            btn.classList.add('bg-notion-bg-hover', 'dark:bg-notion-bg-hover-dark', 'text-notion-text', 'dark:text-notion-text-dark');
+            btn.textContent = '선택만 보기';
+        }
+        filterSpaces();
+    }
+
+    function updateSelectedPreview() {
+        const selected = document.querySelectorAll('input[name="spaceKeys"]:checked');
+        const preview = document.getElementById('selectedPreview');
+        const tagsContainer = document.getElementById('selectedTags');
+
+        if (selected.length === 0) {
+            preview.classList.add('hidden');
+            return;
+        }
+
+        preview.classList.remove('hidden');
+        tagsContainer.innerHTML = '';
+
+        selected.forEach(cb => {
+            const spaceItem = cb.closest('.space-item');
+            const name = spaceItem.querySelector('label span').textContent;
+            const key = cb.value;
+
+            const tag = document.createElement('span');
+            tag.className = 'inline-flex items-center gap-1 px-2 py-1 bg-notion-accent/20 text-notion-accent text-xs rounded-full';
+            tag.innerHTML = `
+                ${name}
+                <button type="button" onclick="removeSpace('${key}')" class="hover:text-red-500 ml-1">&times;</button>
+            `;
+            tagsContainer.appendChild(tag);
+        });
+    }
+
+    function removeSpace(key) {
+        const checkbox = document.getElementById('space-' + key);
+        if (checkbox) {
+            checkbox.checked = false;
+            updateSpaceStyle(checkbox.closest('.space-item'), false);
+            updateSelectedCount();
+            updateSelectedPreview();
+            filterSpaces();
+        }
+    }
+
+    function togglePreview() {
+        const preview = document.getElementById('selectedPreview');
+        preview.classList.toggle('hidden');
     }
 </script>
 </body>

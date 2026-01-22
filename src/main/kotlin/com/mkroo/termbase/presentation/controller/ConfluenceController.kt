@@ -1,9 +1,7 @@
 package com.mkroo.termbase.presentation.controller
 
 import com.mkroo.termbase.application.service.ConfluenceBatchService
-import com.mkroo.termbase.application.service.ConfluenceOAuthService
 import com.mkroo.termbase.domain.repository.ConfluenceWorkspaceRepository
-import jakarta.servlet.http.HttpSession
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Controller
@@ -21,15 +19,10 @@ import java.util.concurrent.Executors
 @Controller
 @RequestMapping("/confluence")
 class ConfluenceController(
-    private val oauthService: ConfluenceOAuthService,
     private val batchService: ConfluenceBatchService,
     private val workspaceRepository: ConfluenceWorkspaceRepository,
 ) {
     private val executor = Executors.newCachedThreadPool()
-
-    companion object {
-        private const val OAUTH_STATE_SESSION_KEY = "confluence_oauth_state"
-    }
 
     @GetMapping("/settings")
     fun settings(model: Model): String {
@@ -38,45 +31,16 @@ class ConfluenceController(
         return "confluence/settings"
     }
 
-    @GetMapping("/oauth/authorize")
-    fun authorize(session: HttpSession): String {
-        val result = oauthService.buildAuthorizationUrl()
-        session.setAttribute(OAUTH_STATE_SESSION_KEY, result.state)
-        return "redirect:${result.url}"
-    }
-
-    @GetMapping("/oauth/callback")
-    fun callback(
-        @RequestParam code: String,
-        @RequestParam state: String,
-        session: HttpSession,
-        redirectAttributes: RedirectAttributes,
-    ): String {
-        val expectedState = session.getAttribute(OAUTH_STATE_SESSION_KEY) as? String
-        session.removeAttribute(OAUTH_STATE_SESSION_KEY)
-
-        if (expectedState == null || expectedState != state) {
-            redirectAttributes.addFlashAttribute("error", "Invalid OAuth state. Please try again.")
-            return "redirect:/confluence/settings"
-        }
-
-        return try {
-            oauthService.handleCallback(code, state)
-            redirectAttributes.addFlashAttribute("success", "Confluence 연동이 완료되었습니다.")
-            "redirect:/confluence/settings"
-        } catch (e: Exception) {
-            redirectAttributes.addFlashAttribute("error", "연동 중 오류가 발생했습니다: ${e.message}")
-            "redirect:/confluence/settings"
-        }
-    }
-
-    @PostMapping("/disconnect/{cloudId}")
+    @PostMapping("/disconnect/{siteId}")
     fun disconnect(
-        @PathVariable cloudId: String,
+        @PathVariable siteId: String,
         redirectAttributes: RedirectAttributes,
     ): String =
         try {
-            oauthService.disconnect(cloudId)
+            val workspace = workspaceRepository.findBySiteId(siteId)
+            if (workspace != null) {
+                workspaceRepository.delete(workspace)
+            }
             redirectAttributes.addFlashAttribute("success", "Confluence 연동이 해제되었습니다.")
             "redirect:/confluence/settings"
         } catch (e: Exception) {
@@ -84,14 +48,14 @@ class ConfluenceController(
             "redirect:/confluence/settings"
         }
 
-    @GetMapping("/spaces/{cloudId}")
+    @GetMapping("/spaces/{siteId}")
     fun spaces(
-        @PathVariable cloudId: String,
+        @PathVariable siteId: String,
         model: Model,
         redirectAttributes: RedirectAttributes,
     ): String =
         try {
-            val workspace = batchService.syncSpaces(cloudId)
+            val workspace = batchService.syncSpaces(siteId)
             model.addAttribute("workspace", workspace)
             "confluence/spaces"
         } catch (e: Exception) {
@@ -99,28 +63,28 @@ class ConfluenceController(
             "redirect:/confluence/settings"
         }
 
-    @PostMapping("/spaces/{cloudId}/select")
+    @PostMapping("/spaces/{siteId}/select")
     fun selectSpaces(
-        @PathVariable cloudId: String,
+        @PathVariable siteId: String,
         @RequestParam(required = false) spaceKeys: List<String>?,
         redirectAttributes: RedirectAttributes,
     ): String =
         try {
-            batchService.updateSpaceSelection(cloudId, spaceKeys ?: emptyList())
+            batchService.updateSpaceSelection(siteId, spaceKeys ?: emptyList())
             redirectAttributes.addFlashAttribute("success", "Space 선택이 저장되었습니다.")
-            "redirect:/confluence/spaces/$cloudId"
+            "redirect:/confluence/spaces/$siteId"
         } catch (e: Exception) {
             redirectAttributes.addFlashAttribute("error", "Space 선택 저장 중 오류가 발생했습니다: ${e.message}")
-            "redirect:/confluence/spaces/$cloudId"
+            "redirect:/confluence/spaces/$siteId"
         }
 
-    @PostMapping("/collect/{cloudId}")
+    @PostMapping("/collect/{siteId}")
     @ResponseBody
     fun collectPages(
-        @PathVariable cloudId: String,
+        @PathVariable siteId: String,
     ): ResponseEntity<CollectionResponse> =
         try {
-            val result = batchService.collectPages(cloudId)
+            val result = batchService.collectPages(siteId)
             ResponseEntity.ok(
                 CollectionResponse(
                     success = true,
@@ -140,15 +104,15 @@ class ConfluenceController(
             )
         }
 
-    @GetMapping("/collect/{cloudId}/stream", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
+    @GetMapping("/collect/{siteId}/stream", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
     fun collectPagesWithProgress(
-        @PathVariable cloudId: String,
+        @PathVariable siteId: String,
     ): SseEmitter {
         val emitter = SseEmitter(0L) // timeout 무제한
 
         executor.execute {
             try {
-                batchService.collectPages(cloudId) { progress ->
+                batchService.collectPages(siteId) { progress ->
                     try {
                         emitter.send(
                             SseEmitter

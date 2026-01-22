@@ -6,80 +6,19 @@ import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
-import java.time.Clock
 import java.time.Instant
-import java.time.ZoneId
 
 class ConfluenceWorkspaceTest :
     DescribeSpec({
         describe("ConfluenceWorkspace") {
             val fixedInstant = Instant.parse("2024-01-15T10:00:00Z")
-            val fixedClock = Clock.fixed(fixedInstant, ZoneId.of("UTC"))
 
-            fun createWorkspace(tokenExpiresAt: Instant = fixedInstant.plusSeconds(3600)) =
+            fun createWorkspace() =
                 ConfluenceWorkspace(
-                    cloudId = "cloud-123",
-                    siteName = "test-site",
-                    accessToken = "access-token",
-                    refreshToken = "refresh-token",
-                    tokenExpiresAt = tokenExpiresAt,
+                    siteId = "test-site",
+                    siteName = "Test Site",
                     connectedAt = fixedInstant,
                 )
-
-            describe("isTokenExpired") {
-                it("should return false when token is valid") {
-                    val workspace =
-                        createWorkspace(
-                            tokenExpiresAt = fixedInstant.plusSeconds(600),
-                        )
-
-                    workspace.isTokenExpired(fixedClock) shouldBe false
-                }
-
-                it("should return true when token expires within buffer time") {
-                    val workspace =
-                        createWorkspace(
-                            tokenExpiresAt = fixedInstant.plusSeconds(299),
-                        )
-
-                    workspace.isTokenExpired(fixedClock) shouldBe true
-                }
-
-                it("should return true when token is already expired") {
-                    val workspace =
-                        createWorkspace(
-                            tokenExpiresAt = fixedInstant.minusSeconds(1),
-                        )
-
-                    workspace.isTokenExpired(fixedClock) shouldBe true
-                }
-
-                it("should return false when token expires exactly at buffer boundary") {
-                    val workspace =
-                        createWorkspace(
-                            tokenExpiresAt = fixedInstant.plusSeconds(300),
-                        )
-
-                    workspace.isTokenExpired(fixedClock) shouldBe false
-                }
-            }
-
-            describe("updateTokens") {
-                it("should update all token fields") {
-                    val workspace = createWorkspace()
-
-                    workspace.updateTokens(
-                        accessToken = "new-access-token",
-                        refreshToken = "new-refresh-token",
-                        expiresIn = 7200,
-                        clock = fixedClock,
-                    )
-
-                    workspace.accessToken shouldBe "new-access-token"
-                    workspace.refreshToken shouldBe "new-refresh-token"
-                    workspace.tokenExpiresAt shouldBe fixedInstant.plusSeconds(7200)
-                }
-            }
 
             describe("addSpace") {
                 it("should add a new space") {

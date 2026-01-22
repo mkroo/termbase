@@ -9,6 +9,7 @@ import io.kotest.matchers.shouldBe
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
+import org.springframework.dao.DataAccessResourceFailureException
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations
 import org.springframework.test.context.ActiveProfiles
 import java.time.Instant
@@ -52,12 +53,12 @@ class ElasticsearchSourceDocumentRepositoryTest : DescribeSpec() {
 
                 it("should create index if not exists") {
                     val indexOps = elasticsearchOperations.indexOps(SourceDocument::class.java)
-                    indexOps.exists() shouldBe false
+                    withRetry { indexOps.exists() } shouldBe false
 
                     val documents = listOf(createSourceDocument("doc-001", "테스트"))
                     repository.saveAll(documents)
 
-                    indexOps.exists() shouldBe true
+                    withRetry { indexOps.exists() } shouldBe true
                 }
             }
 
@@ -98,12 +99,38 @@ class ElasticsearchSourceDocumentRepositoryTest : DescribeSpec() {
     private fun cleanupIndex() {
         try {
             val indexOps = elasticsearchOperations.indexOps(SourceDocument::class.java)
-            if (indexOps.exists()) {
-                indexOps.delete()
+            if (withRetry { indexOps.exists() }) {
+                withRetry { indexOps.delete() }
             }
+            repository.resetIndexCache()
         } catch (e: Exception) {
             // ignore
         }
+    }
+
+    private fun <T> withRetry(
+        maxRetries: Int = 3,
+        initialDelayMs: Long = 100,
+        action: () -> T,
+    ): T {
+        var lastException: Exception? = null
+        var delay = initialDelayMs
+
+        repeat(maxRetries) { attempt ->
+            try {
+                return action()
+            } catch (e: DataAccessResourceFailureException) {
+                if (e.message?.contains("429") == true) {
+                    lastException = e
+                    Thread.sleep(delay)
+                    delay *= 2
+                } else {
+                    throw e
+                }
+            }
+        }
+
+        throw lastException ?: IllegalStateException("Retry failed without exception")
     }
 
     private fun createSourceDocument(

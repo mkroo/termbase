@@ -51,6 +51,7 @@ class GlossaryControllerTest : DescribeSpec() {
                         .andExpect(status().isOk)
                         .andExpect(view().name("glossary/list"))
                         .andExpect(model().attributeExists("terms"))
+                        .andExpect(model().attributeExists("candidates"))
                         .andExpect(model().attributeExists("q"))
                         .andExpect(model().attributeExists("sort"))
                 }
@@ -249,6 +250,172 @@ class GlossaryControllerTest : DescribeSpec() {
                         ).andExpect(status().is3xxRedirection)
                         .andExpect(redirectedUrl("/glossary"))
                         .andExpect(flash().attributeExists("success"))
+                }
+            }
+
+            describe("POST /glossary/candidate") {
+                it("용어 후보를 등록하고 목록 페이지로 리다이렉트한다") {
+                    mockMvc
+                        .perform(
+                            post("/glossary/candidate")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "API")
+                                .param("definition", "Application Programming Interface"),
+                        ).andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/glossary"))
+                        .andExpect(flash().attributeExists("success"))
+                }
+
+                it("검색 쿼리가 있으면 쿼리를 포함하여 리다이렉트한다") {
+                    mockMvc
+                        .perform(
+                            post("/glossary/candidate")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "SDK")
+                                .param("definition", "Software Development Kit")
+                                .param("q", "SDK"),
+                        ).andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/glossary?q=SDK"))
+                        .andExpect(flash().attributeExists("success"))
+                }
+
+                it("이미 존재하는 용어를 등록하면 에러와 함께 리다이렉트한다") {
+                    glossaryService.addTerm("API", "기존 정의")
+
+                    mockMvc
+                        .perform(
+                            post("/glossary/candidate")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "API")
+                                .param("definition", "새로운 정의"),
+                        ).andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/glossary"))
+                        .andExpect(flash().attributeExists("error"))
+                }
+
+                it("동의어로 등록된 용어를 추가하면 에러와 함께 리다이렉트한다") {
+                    glossaryService.addTerm("API", "Application Programming Interface")
+                    synonymService.addSynonym("API", "인터페이스")
+
+                    mockMvc
+                        .perform(
+                            post("/glossary/candidate")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "인터페이스")
+                                .param("definition", "접점"),
+                        ).andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/glossary"))
+                        .andExpect(flash().attributeExists("error"))
+                }
+
+                it("기존 용어와 충돌하는 용어를 추가하면 경고와 함께 리다이렉트한다") {
+                    glossaryService.addTerm("지능", "지적 능력")
+
+                    mockMvc
+                        .perform(
+                            post("/glossary/candidate")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "인공지능")
+                                .param("definition", "인간의 지능을 모방한 기술"),
+                        ).andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/glossary"))
+                        .andExpect(flash().attributeExists("warning"))
+                }
+
+                it("무시된 단어로 등록된 용어를 추가하면 에러와 함께 리다이렉트한다") {
+                    ignoredTermService.addIgnoredTerm("테스트", "일반적인 단어")
+
+                    mockMvc
+                        .perform(
+                            post("/glossary/candidate")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "테스트")
+                                .param("definition", "시험"),
+                        ).andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/glossary"))
+                        .andExpect(flash().attributeExists("error"))
+                }
+            }
+
+            describe("POST /glossary/candidate/ignore") {
+                it("용어 후보를 무시 처리하고 목록 페이지로 리다이렉트한다") {
+                    mockMvc
+                        .perform(
+                            post("/glossary/candidate/ignore")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "테스트")
+                                .param("reason", "일반적인 단어"),
+                        ).andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/glossary"))
+                        .andExpect(flash().attributeExists("success"))
+                }
+
+                it("검색 쿼리가 있으면 쿼리를 포함하여 리다이렉트한다") {
+                    mockMvc
+                        .perform(
+                            post("/glossary/candidate/ignore")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "일반")
+                                .param("reason", "너무 일반적")
+                                .param("q", "일반"),
+                        ).andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/glossary?q=일반"))
+                        .andExpect(flash().attributeExists("success"))
+                }
+
+                it("이미 용어 사전에 등록된 단어를 무시하면 에러와 함께 리다이렉트한다") {
+                    glossaryService.addTerm("API", "Application Programming Interface")
+
+                    mockMvc
+                        .perform(
+                            post("/glossary/candidate/ignore")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "API")
+                                .param("reason", "이미 등록됨"),
+                        ).andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/glossary"))
+                        .andExpect(flash().attributeExists("error"))
+                }
+
+                it("동의어로 등록된 단어를 무시하면 에러와 함께 리다이렉트한다") {
+                    glossaryService.addTerm("API", "Application Programming Interface")
+                    synonymService.addSynonym("API", "인터페이스")
+
+                    mockMvc
+                        .perform(
+                            post("/glossary/candidate/ignore")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "인터페이스")
+                                .param("reason", "이미 동의어"),
+                        ).andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/glossary"))
+                        .andExpect(flash().attributeExists("error"))
+                }
+
+                it("이미 무시 처리된 단어를 다시 무시하면 에러와 함께 리다이렉트한다") {
+                    ignoredTermService.addIgnoredTerm("테스트", "일반적인 단어")
+
+                    mockMvc
+                        .perform(
+                            post("/glossary/candidate/ignore")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "테스트")
+                                .param("reason", "다시 무시"),
+                        ).andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/glossary"))
+                        .andExpect(flash().attributeExists("error"))
+                }
+
+                it("무시 사유가 비어있으면 에러와 함께 리다이렉트한다") {
+                    mockMvc
+                        .perform(
+                            post("/glossary/candidate/ignore")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .param("name", "테스트")
+                                .param("reason", ""),
+                        ).andExpect(status().is3xxRedirection)
+                        .andExpect(redirectedUrl("/glossary"))
+                        .andExpect(flash().attributeExists("error"))
                 }
             }
         }

@@ -8,7 +8,23 @@
 
     <main class="max-w-5xl mx-auto px-6 py-8">
         <!-- Header -->
-        <h1 class="text-3xl font-bold text-notion-text dark:text-notion-text-dark mb-6">용어 후보</h1>
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-notion-text dark:text-notion-text-dark">용어 후보</h1>
+                <p th:if="${totalElements > 0}" class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark mt-1">
+                    총 <span th:text="${totalElements}">0</span>개
+                </p>
+            </div>
+            <form th:action="@{/candidates/extract}" method="post">
+                <button type="submit"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-notion-accent text-white rounded hover:opacity-90 transition whitespace-nowrap">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    후보 추출
+                </button>
+            </form>
+        </div>
 
         <!-- Flash Messages -->
         <div th:if="${success != null}" class="mb-4 px-4 py-3 text-sm bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded" th:text="${success}"></div>
@@ -24,6 +40,14 @@
                               text-notion-text dark:text-notion-text-dark
                               placeholder-notion-text-secondary dark:placeholder-notion-text-secondary-dark
                               focus:outline-none focus:ring-1 focus:ring-notion-accent focus:border-notion-accent">
+                <select name="size" class="px-3 py-2 text-sm bg-notion-bg-secondary dark:bg-notion-bg-secondary-dark
+                               border border-notion-border dark:border-notion-border-dark rounded
+                               text-notion-text dark:text-notion-text-dark
+                               focus:outline-none focus:ring-1 focus:ring-notion-accent">
+                    <option value="20" th:selected="${pageSize == 20}">20개씩</option>
+                    <option value="50" th:selected="${pageSize == 50}">50개씩</option>
+                    <option value="100" th:selected="${pageSize == 100}">100개씩</option>
+                </select>
                 <button type="submit"
                         class="px-4 py-2 text-sm bg-notion-text dark:bg-notion-text-dark text-white dark:text-notion-bg-dark rounded hover:opacity-90 transition whitespace-nowrap">
                     검색
@@ -106,9 +130,66 @@
             </table>
         </div>
 
-        <!-- Info -->
-        <div th:unless="${#lists.isEmpty(candidates)}" class="mt-4 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark">
-            총 <span th:text="${#lists.size(candidates)}"></span>개의 용어 후보
+        <!-- Pagination -->
+        <div th:if="${totalPages > 1}" class="mt-6 flex items-center justify-between">
+            <div class="text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark">
+                <span th:text="${currentPage * pageSize + 1}">1</span>-<span th:text="${#numbers.min(currentPage * pageSize + pageSize, totalElements)}">20</span> / <span th:text="${totalElements}">100</span>개
+            </div>
+            <nav class="flex items-center gap-1">
+                <!-- First Page -->
+                <a th:if="${hasPrevious}"
+                   th:href="@{/candidates(q=${query}, page=0, size=${pageSize})}"
+                   class="px-3 py-1.5 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark rounded transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
+                    </svg>
+                </a>
+
+                <!-- Previous Page -->
+                <a th:if="${hasPrevious}"
+                   th:href="@{/candidates(q=${query}, page=${currentPage - 1}, size=${pageSize})}"
+                   class="px-3 py-1.5 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark rounded transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+
+                <!-- Page Numbers -->
+                <th:block th:with="startPage=${#numbers.max(0, currentPage - 2)}, endPage=${#numbers.min(totalPages - 1, currentPage + 2)}">
+                    <th:block th:each="i : ${#numbers.sequence(startPage, endPage)}">
+                        <a th:if="${i != currentPage}"
+                           th:href="@{/candidates(q=${query}, page=${i}, size=${pageSize})}"
+                           th:text="${i + 1}"
+                           class="px-3 py-1.5 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark rounded transition"></a>
+                        <span th:if="${i == currentPage}"
+                              th:text="${i + 1}"
+                              class="px-3 py-1.5 text-sm font-medium text-notion-accent bg-notion-accent/10 rounded"></span>
+                    </th:block>
+                </th:block>
+
+                <!-- Next Page -->
+                <a th:if="${hasNext}"
+                   th:href="@{/candidates(q=${query}, page=${currentPage + 1}, size=${pageSize})}"
+                   class="px-3 py-1.5 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark rounded transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </a>
+
+                <!-- Last Page -->
+                <a th:if="${hasNext}"
+                   th:href="@{/candidates(q=${query}, page=${totalPages - 1}, size=${pageSize})}"
+                   class="px-3 py-1.5 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark hover:bg-notion-bg-hover dark:hover:bg-notion-bg-hover-dark rounded transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
+                    </svg>
+                </a>
+            </nav>
+        </div>
+
+        <!-- Info (when pagination is not needed) -->
+        <div th:if="${totalPages <= 1 and not #lists.isEmpty(candidates)}" class="mt-4 text-sm text-notion-text-secondary dark:text-notion-text-secondary-dark">
+            총 <span th:text="${totalElements}"></span>개의 용어 후보
         </div>
     </main>
 </body>

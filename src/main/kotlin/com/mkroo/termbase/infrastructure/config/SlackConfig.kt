@@ -8,7 +8,9 @@ import org.springframework.context.annotation.Configuration
 data class SlackProperties(
     val botToken: String = "",
     val workspaceId: String = "",
-)
+) {
+    fun isConfigured(): Boolean = botToken.isNotBlank()
+}
 
 @Configuration
 @EnableConfigurationProperties(SlackProperties::class)

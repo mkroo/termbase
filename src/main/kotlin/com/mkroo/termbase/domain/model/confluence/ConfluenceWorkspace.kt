@@ -9,7 +9,6 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
-import java.time.Clock
 import java.time.Instant
 
 @Entity
@@ -18,15 +17,9 @@ class ConfluenceWorkspace(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long? = null,
     @Column(nullable = false, unique = true)
-    val cloudId: String,
+    val siteId: String,
     @Column(nullable = false)
-    val siteName: String,
-    @Column(nullable = false, length = 4096)
-    var accessToken: String,
-    @Column(nullable = false, length = 4096)
-    var refreshToken: String,
-    @Column(nullable = false)
-    var tokenExpiresAt: Instant,
+    var siteName: String,
     @OneToMany(mappedBy = "workspace", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.EAGER)
     private val _spaces: MutableList<ConfluenceSpace> = mutableListOf(),
     @Column(nullable = false, updatable = false)
@@ -36,20 +29,6 @@ class ConfluenceWorkspace(
 
     val selectedSpaces: List<ConfluenceSpace>
         get() = _spaces.filter { it.isSelected }
-
-    fun isTokenExpired(clock: Clock = Clock.systemUTC()): Boolean =
-        Instant.now(clock).isAfter(tokenExpiresAt.minusSeconds(TOKEN_REFRESH_BUFFER_SECONDS))
-
-    fun updateTokens(
-        accessToken: String,
-        refreshToken: String,
-        expiresIn: Long,
-        clock: Clock = Clock.systemUTC(),
-    ) {
-        this.accessToken = accessToken
-        this.refreshToken = refreshToken
-        this.tokenExpiresAt = Instant.now(clock).plusSeconds(expiresIn)
-    }
 
     fun addSpace(
         spaceId: String,
@@ -94,10 +73,6 @@ class ConfluenceWorkspace(
             _spaces.find { it.spaceKey == spaceKey }
                 ?: throw IllegalArgumentException("Space not found: $spaceKey")
         space.isSelected = false
-    }
-
-    companion object {
-        private const val TOKEN_REFRESH_BUFFER_SECONDS = 300L
     }
 }
 
